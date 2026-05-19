@@ -165,6 +165,54 @@
     .comparacion-live .actual { font-weight: 700; color: #2d3748; }
     .comparacion-live .flecha { font-size: 18px; }
 
+    /* NUEVA COTIZACIÓN — UPLOAD FLOW */
+    .nc-pasos { display:flex; margin-bottom:24px; }
+    .nc-paso { flex:1; text-align:center; padding:10px 8px; font-size:12px; font-weight:600; color:#a0aec0; border-bottom:3px solid #e2e8f0; }
+    .nc-paso.activo { color:#1a1a2e; border-bottom-color:#e8a838; }
+    .nc-paso.hecho  { color:#276749; border-bottom-color:#68d391; }
+    .nc-drop-area {
+      border:2.5px dashed #c7d2fe; border-radius:14px; padding:52px 32px;
+      text-align:center; background:#f8f9ff; cursor:pointer; transition:all .2s;
+    }
+    .nc-drop-area:hover, .nc-drop-area.drag-over { border-color:#e8a838; background:#fffdf5; }
+    .nc-spinner {
+      width:42px; height:42px; border:4px solid #e2e8f0; border-top-color:#e8a838;
+      border-radius:50%; animation:spin .8s linear infinite; margin:0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .nc-exito-header {
+      display:flex; align-items:center; gap:12px;
+      background:#f0fff4; border:1px solid #9ae6b4; border-radius:10px;
+      padding:14px 18px; margin-bottom:20px;
+    }
+    .nc-datos-grid {
+      display:grid; grid-template-columns:1fr 1fr; gap:1px;
+      border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; margin-bottom:16px;
+      background:#e2e8f0;
+    }
+    .nc-dato { display:flex; background:#fff; }
+    .nc-dato.full { grid-column:1/-1; }
+    .nc-lbl {
+      width:130px; min-width:130px; padding:10px 14px; display:flex; align-items:center;
+      background:#f7fafc; color:#718096; font-weight:600; font-size:12px;
+      border-right:1px solid #e2e8f0;
+    }
+    .nc-dato input, .nc-dato select {
+      flex:1; border:none; outline:none; padding:10px 14px;
+      font-size:13px; color:#2d3748; background:transparent; width:0;
+    }
+    .nc-dato input:focus { background:#fffdf5; }
+    .nc-comparacion-badge {
+      display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+      padding:12px 16px; border-radius:10px; font-size:13px;
+      margin-bottom:16px; border:1px solid #e2e8f0;
+    }
+    .nc-nota { font-size:11px; color:#a0aec0; margin-bottom:14px; }
+    .nc-card {
+      border:1px solid #e2e8f0; border-radius:12px;
+      padding:20px; margin-bottom:16px;
+    }
+
     /* RESPONSIVE */
     @media(max-width: 600px) {
       main { padding: 16px; }
@@ -244,78 +292,59 @@
   <!-- ===== TAB: NUEVA COTIZACIÓN ===== -->
   <div id="tab-nueva" class="tab-content">
     <div class="card">
-      <h2>Registrar Nueva Cotización</h2>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Proveedor *</label>
-          <input type="text" id="n-proveedor" placeholder="Ej: ANTALIS" />
-        </div>
-        <div class="form-group">
-          <label>Producto *</label>
-          <input type="text" id="n-producto" placeholder="Ej: Caja 30x20 cm" list="productos-list" oninput="mostrarHistorico()" />
-          <datalist id="productos-list"></datalist>
-        </div>
-        <div class="form-group">
-          <label>Tipo de Producto</label>
-          <select id="n-tipo">
-            <option value="">Seleccionar...</option>
-            <option>Etiqueta</option>
-            <option>Embalaje</option>
-            <option>Envase</option>
-            <option>Insumo</option>
-            <option>Materia Prima</option>
-            <option>Otro</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Unidad</label>
-          <input type="text" id="n-unidad" placeholder="Ej: unidades, kg, litros" />
-        </div>
-        <div class="form-group">
-          <label>Cantidad Cotizada *</label>
-          <input type="number" id="n-cantidad" placeholder="Ej: 1000" min="0" oninput="calcularUnitario(); actualizarComparacion();" />
-        </div>
-        <div class="form-group">
-          <label>Precio Total ($) *</label>
-          <input type="number" id="n-precio-total" placeholder="Ej: 150000" min="0" step="1" oninput="calcularUnitario(); actualizarComparacion();" />
-        </div>
-        <div class="form-group">
-          <label>Precio Unitario (calculado)</label>
-          <input type="text" id="n-precio-unitario" readonly placeholder="Auto" style="background:#f7fafc; color:#718096;" />
-        </div>
-        <div class="form-group">
-          <label>Fecha Cotización *</label>
-          <input type="date" id="n-fecha" />
-        </div>
-        <div class="form-group">
-          <label>Proyecto / Cliente asociado</label>
-          <input type="text" id="n-proyecto" placeholder="Ej: AMOBLE 2026" list="clientes-list" />
-        </div>
-        <div class="form-group">
-          <label>Correo proveedor</label>
-          <input type="email" id="n-email-proveedor" placeholder="contacto@proveedor.cl" />
-        </div>
-        <div class="form-group">
-          <label>Nombre contacto proveedor</label>
-          <input type="text" id="n-contacto" placeholder="Ej: Juan Pérez" />
-        </div>
-      </div>
-      <div class="form-group" style="margin-top:14px;">
-        <label>Notas adicionales</label>
-        <textarea id="n-notas" placeholder="Condiciones especiales, tiempo de entrega, etc."></textarea>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-primary" onclick="guardarCotizacion()">💾 Guardar Cotización</button>
-        <button class="btn btn-gold" onclick="limpiarFormulario()">🔄 Limpiar</button>
-      </div>
-      <div id="msg-guardado" style="display:none; margin-top:12px; color:#276749; font-weight:600; font-size:14px;"></div>
-    </div>
+      <h2>Nueva Cotización</h2>
+      <p style="font-size:13px;color:#a0aec0;margin-bottom:22px;">
+        Sube el PDF o Excel que te envió el proveedor — el sistema extrae los datos y compara con el historial automáticamente.
+      </p>
 
-    <!-- Panel historial — aparece al escribir el producto -->
-    <div id="panel-historico" class="card panel-historico" style="display:none;">
-      <h2>📊 Historial de precios — <span id="hist-titulo" style="color:#e8a838;"></span></h2>
-      <div id="hist-comparacion-live"></div>
-      <div id="hist-contenido"></div>
+      <div class="nc-pasos">
+        <div class="nc-paso activo" id="nc-p1">① Subir archivo</div>
+        <div class="nc-paso" id="nc-p2">② Revisar datos</div>
+        <div class="nc-paso" id="nc-p3">③ Comparar y guardar</div>
+      </div>
+
+      <!-- PASO 1: Drop zone -->
+      <div id="nc-dropzone">
+        <div class="nc-drop-area" id="nc-drop-area"
+             ondragover="ncDragOver(event)" ondragleave="ncDragLeave(event)" ondrop="ncDrop(event)"
+             onclick="document.getElementById('nc-file-input').click()">
+          <div style="font-size:52px;margin-bottom:14px;">📂</div>
+          <div style="font-size:17px;font-weight:700;color:#2d3748;margin-bottom:6px;">Arrastra aquí la cotización del proveedor</div>
+          <div style="font-size:13px;color:#718096;margin-bottom:20px;">O haz clic para buscar en tu computador</div>
+          <button class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('nc-file-input').click()">
+            📎 Seleccionar PDF o Excel
+          </button>
+          <div style="font-size:11px;color:#a0aec0;margin-top:14px;">Formatos aceptados: .pdf · .xlsx · .xls</div>
+        </div>
+        <input type="file" id="nc-file-input" accept=".pdf,.xlsx,.xls" style="display:none" onchange="ncHandleFileInput(event)" />
+      </div>
+
+      <!-- PASO 2: Procesando -->
+      <div id="nc-procesando" style="display:none;text-align:center;padding:52px 32px;">
+        <div class="nc-spinner"></div>
+        <div style="font-size:15px;font-weight:600;color:#2d3748;margin-top:18px;">Extrayendo datos del archivo…</div>
+        <div id="nc-procesando-nombre" style="font-size:12px;color:#a0aec0;margin-top:6px;"></div>
+      </div>
+
+      <!-- PASO 3: Resultado -->
+      <div id="nc-resultado" style="display:none;">
+        <div class="nc-exito-header">
+          <span style="font-size:22px;">✅</span>
+          <div style="flex:1;">
+            <div style="font-weight:700;color:#276749;" id="nc-exito-titulo"></div>
+            <div style="font-size:12px;color:#68d391;margin-top:2px;" id="nc-exito-sub"></div>
+          </div>
+          <span style="font-size:12px;color:#718096;cursor:pointer;text-decoration:underline;" onclick="ncReiniciar()">✕ Cambiar archivo</span>
+        </div>
+
+        <div id="nc-productos-container"></div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="nc-btn-guardar" onclick="ncGuardarTodo()">💾 Guardar cotización</button>
+          <button class="btn" style="background:#e2e8f0;color:#718096" onclick="ncReiniciar()">🔄 Subir otro archivo</button>
+        </div>
+        <div id="nc-msg-guardado" style="display:none;margin-top:12px;color:#276749;font-weight:600;font-size:14px;"></div>
+      </div>
     </div>
   </div>
 
@@ -420,6 +449,8 @@
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 // ─── SUPABASE ──────────────────────────────────────────────────────────────
@@ -982,9 +1013,462 @@ async function eliminarEtiqueta(id) {
   await renderEtiquetas();
 }
 
+// ─── NUEVA COTIZACIÓN — UPLOAD FLOW ───────────────────────────────────────
+
+let _ncDatos = [];
+
+// PDF.js worker (lazy)
+function ncSetupPdfJs() {
+  if (typeof pdfjsLib !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+}
+
+// Drag & drop
+function ncDragOver(e) { e.preventDefault(); document.getElementById('nc-drop-area').classList.add('drag-over'); }
+function ncDragLeave()  { document.getElementById('nc-drop-area').classList.remove('drag-over'); }
+function ncDrop(e)      { e.preventDefault(); ncDragLeave(); const f = e.dataTransfer.files[0]; if (f) ncHandleFile(f); }
+function ncHandleFileInput(e) { const f = e.target.files[0]; if (f) ncHandleFile(f); }
+
+async function ncHandleFile(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['pdf','xlsx','xls'].includes(ext)) { alert('Usa un archivo PDF, XLSX o XLS.'); return; }
+
+  document.getElementById('nc-dropzone').style.display    = 'none';
+  document.getElementById('nc-resultado').style.display   = 'none';
+  document.getElementById('nc-procesando').style.display  = 'block';
+  document.getElementById('nc-procesando-nombre').textContent = file.name;
+  ncSetPaso(2);
+
+  try {
+    let rows = ext === 'pdf' ? ncExtraerDePDF(await ncParsePDF(file), file.name)
+                             : await ncParseXLSX(file);
+    if (!rows.length) { alert('No se pudieron extraer datos. Intenta con otro archivo.'); ncReiniciar(); return; }
+    _ncDatos = rows;
+    ncMostrarResultado(file.name, rows);
+  } catch(e) {
+    alert('Error al procesar el archivo: ' + e.message);
+    ncReiniciar();
+  }
+}
+
+async function ncParsePDF(file) {
+  ncSetupPdfJs();
+  const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  let texto = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page    = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const items   = content.items;
+    if (!items.length) continue;
+    // Agrupar items por posición Y para preservar líneas
+    items.sort((a,b) => (b.transform[5]-a.transform[5]) || (a.transform[4]-b.transform[4]));
+    let curY = null, linea = '';
+    for (const item of items) {
+      const y = Math.round(item.transform[5]);
+      if (curY === null) { curY = y; linea = item.str; }
+      else if (Math.abs(y - curY) <= 4) { linea += ' ' + item.str; }
+      else { texto += linea.trim() + '\n'; curY = y; linea = item.str; }
+    }
+    if (linea) texto += linea.trim() + '\n';
+    texto += '\n';
+  }
+  return texto;
+}
+
+async function ncParseXLSX(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = e => {
+      try {
+        const wb   = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const rows = [];
+        wb.SheetNames.forEach(name => {
+          const data = XLSX.utils.sheet_to_json(wb.Sheets[name], { header:1, defval:'' });
+          data.forEach((fila, idx) => {
+            if (idx === 0) return;
+            const nums  = fila.map((v,i) => ({ v: typeof v==='number' ? v : parseFloat(String(v).replace(/[$\.\s]/g,'')), i }))
+                              .filter(x => !isNaN(x.v) && x.v > 0);
+            if (nums.length < 2) return;
+            const textos = fila.filter(v => typeof v==='string' && v.trim().length > 2);
+            if (!textos.length) return;
+            const cant = nums.find(n => n.v >= 100 && n.v <= 50000)?.v;
+            const pu   = cant ? nums.find(n => n.v >= 5 && n.v < cant*100 && n.v !== cant)?.v : null;
+            if (cant && pu) {
+              rows.push({ proveedor:'Ver archivo', producto:textos[0].trim().substring(0,100),
+                tipo:ncInferirTipo(textos[0]), fecha:new Date().toISOString().split('T')[0],
+                proyecto:null, cantidad:cant, precio_total:Math.round(cant*pu), precio_unitario:pu,
+                estado:'pendiente', cantidad_anterior:null, precio_unitario_anterior:null });
+            }
+          });
+        });
+        resolve(rows);
+      } catch(err) { reject(err); }
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function ncExtraerProveedor(texto) {
+  const conocidos = [
+    [/gl\s*group/i,              'GL Group S.A.'],
+    [/impresos?\s*roman/i,       'Impresos Roman SPA'],
+    [/antalis/i,                 'ANTALIS'],
+    [/dulox/i,                   'DULOX'],
+    [/lisichile|lisi\s+chile/i,  'Lisi Chile'],
+    [/ryr/i,                     'RYR Impresores'],
+    [/novopack/i,                'Novopack'],
+    [/zebra/i,                   'Zebra'],
+    [/comercial\s+gl/i,          'GL Group S.A.'],
+  ];
+  for (const [re, nombre] of conocidos) {
+    if (re.test(texto)) return nombre;
+  }
+  const m = texto.match(/De\s{2,}([A-ZÁÉÍÓÚÑ][^\n\r]{3,40})/i);
+  if (m) return m[1].trim();
+  return '';
+}
+
+function ncExtraerFecha(texto, nombre) {
+  const m = texto.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  const fm = nombre.match(/(\d{2})(\d{2})(\d{4})|(\d{2})-(\d{2})-(\d{2,4})/);
+  if (fm) {
+    if (fm[3]) return `${fm[3]}-${fm[2]}-${fm[1]}`;
+    const y = fm[6].length===2 ? '20'+fm[6] : fm[6];
+    return `${y}-${fm[5]}-${fm[4]}`;
+  }
+  return new Date().toISOString().split('T')[0];
+}
+
+function ncInferirTipo(nombre) {
+  const n = nombre.toLowerCase();
+  if (/estuche|caja/.test(n))              return 'Embalaje';
+  if (/etiqueta|sticker|label|sello/.test(n)) return 'Etiqueta';
+  if (/hang.?tag/.test(n))                 return 'Etiqueta';
+  if (/balde|bidon|envase|botella/.test(n)) return 'Envase';
+  return 'Insumo';
+}
+
+function ncExtraerDePDF(texto, nombreArchivo) {
+  const proveedor  = ncExtraerProveedor(texto);
+  const fecha      = ncExtraerFecha(texto, nombreArchivo);
+  const rows       = [];
+  const parseNum   = s => parseInt(String(s).replace(/[,\.]/g,''), 10);
+  const SKIP       = /^\s*(item|descripci[oó]n|cantidad|precio|total|neto|iva|subtotal|observ|fono|fax|tel[eé]f)\s*$/i;
+  const lineas     = texto.split('\n').map(l => l.trim()).filter(l => l.length > 3);
+
+  // Patrón A: "Descripción texto   cantidad   $ precio_unit   total"
+  // Ej: "RFID Label Coated Paper 54x34   546   $ 40   21,840"
+  const patA = /([A-Za-záéíóúÁÉÍÓÚñÑ][^\n$]{3,80?}?)\s{1,}(\d{2,6})\s+\$\s*([\d,\.]+)\s+([\d,\.]+)/;
+
+  // Patrón B (original): "cantidad   descripción   $ precio   total"
+  const patB = /(\d{3,6})\s+[^\n$]{3,80}\$\s*([\d,\.]+)\s+\$?([\d,\.]+)/;
+
+  for (const linea of lineas) {
+    if (SKIP.test(linea)) continue;
+
+    let desc, cant, pu, tot;
+
+    const mA = linea.match(patA);
+    if (mA) {
+      desc = mA[1].trim();
+      cant = parseNum(mA[2]);
+      pu   = parseNum(mA[3]);
+      tot  = parseNum(mA[4]);
+    } else {
+      const mB = linea.match(patB);
+      if (mB) {
+        cant = parseNum(mB[1]);
+        pu   = parseNum(mB[2]);
+        tot  = parseNum(mB[3]);
+        // Intentar extraer descripción de la línea anterior
+        const idx = lineas.indexOf(linea);
+        const prev = idx > 0 ? lineas[idx-1] : '';
+        desc = /^[A-Za-záéíóúÁÉÍÓÚñÑ]/.test(prev) && !/\$|\d{3,}/.test(prev) ? prev : null;
+      }
+    }
+
+    if (!cant || !pu || cant < 5 || cant > 500000 || pu < 1 || pu > 10000000) continue;
+    if (desc && SKIP.test(desc)) continue;
+
+    // Si no hay descripción, usar el nombre del archivo limpio
+    if (!desc || desc.length < 3) {
+      desc = nombreArchivo.replace(/\.[^.]+$/,'')
+        .replace(/\d{6,}/g,'').replace(/cotizaci[oó]n[_\s]*/gi,'')
+        .replace(/presupuesto[_\s]*/gi,'').replace(/coti[_\s]*/gi,'')
+        .replace(/[_\-]+/g,' ').trim() || ncInferirTipo(nombreArchivo);
+    }
+
+    rows.push({
+      proveedor, producto: desc.substring(0,100), tipo: ncInferirTipo(desc),
+      fecha, proyecto: null, cantidad: cant,
+      precio_total: (tot && tot > pu) ? tot : Math.round(cant * pu),
+      precio_unitario: pu,
+      estado: 'pendiente', cantidad_anterior: null, precio_unitario_anterior: null,
+    });
+  }
+
+  // Fallback: buscar total global + primera cantidad mencionada
+  if (!rows.length) {
+    const tm  = texto.match(/total[^\d]*\$?\s*([\d,\.]+)/i);
+    const cm  = texto.match(/\b(\d{3,5})\b/);
+    const tot = tm  ? parseNum(tm[1])  : null;
+    const cant = cm ? parseInt(cm[1])  : null;
+    const desc = nombreArchivo.replace(/\.[^.]+$/,'')
+      .replace(/\d{6,}/g,'').replace(/cotizaci[oó]n[_\s]*/gi,'')
+      .replace(/presupuesto[_\s]*/gi,'').replace(/coti[_\s]*/gi,'')
+      .replace(/[_\-]+/g,' ').trim() || 'Producto';
+    if (tot && cant && pu > 0) {
+      rows.push({ proveedor, producto: desc, tipo: ncInferirTipo(desc), fecha,
+        proyecto: null, cantidad: cant, precio_total: tot,
+        precio_unitario: parseFloat((tot/cant).toFixed(2)),
+        estado: 'pendiente', cantidad_anterior: null, precio_unitario_anterior: null });
+    }
+  }
+
+  return rows;
+}
+
+function ncSetPaso(n) {
+  ['nc-p1','nc-p2','nc-p3'].forEach((id,i) => {
+    document.getElementById(id).className =
+      'nc-paso' + (i+1<n ? ' hecho' : i+1===n ? ' activo' : '');
+  });
+}
+
+function ncEsc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+function ncMostrarResultado(nombreArchivo, rows) {
+  document.getElementById('nc-procesando').style.display = 'none';
+  document.getElementById('nc-resultado').style.display  = 'block';
+  ncSetPaso(3);
+  document.getElementById('nc-exito-titulo').textContent = `Datos extraídos de "${nombreArchivo}"`;
+  document.getElementById('nc-exito-sub').textContent =
+    `${rows.length} producto${rows.length>1?'s':''} identificado${rows.length>1?'s':''} — revisa y corrige si es necesario`;
+
+  const container = document.getElementById('nc-productos-container');
+  container.innerHTML = rows.length <= 5
+    ? rows.map((p,i) => ncRenderCard(p,i)).join('')
+    : ncRenderTablaPrevia(rows);
+}
+
+function ncHistRef(producto) {
+  return _cotizaciones
+    .filter(c => c.producto.toLowerCase() === producto.toLowerCase())
+    .sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+}
+
+function ncComparBadge(puNuevo, ref) {
+  if (!ref) return { bg:'#f7fafc', html:'<span style="color:#a0aec0">Sin historial — será la primera cotización de este producto.</span>' };
+  const v = parseFloat(pct(ref.precio_unitario, puNuevo));
+  const refText = `Última ref.: ${ref.fecha} · <strong>${ref.proveedor}</strong>: ${fmt(Math.round(ref.precio_unitario))}/u`;
+  if (isNaN(v) || Math.abs(v)<0.5)
+    return { bg:'#f7fafc', html:`${refText} &nbsp; <span style="color:#718096;font-weight:700;">⚪ Precio igual</span>` };
+  if (v>0)
+    return { bg:'#fff5f5', html:`${refText} &nbsp; <span style="color:#c53030;font-weight:700;">🔴 +${v.toFixed(1)}% más caro</span>` };
+  return   { bg:'#f0fff4', html:`${refText} &nbsp; <span style="color:#276749;font-weight:700;">🟢 ${v.toFixed(1)}% más barato</span>` };
+}
+
+function ncRenderCard(p, idx) {
+  const hist = ncHistRef(p.producto);
+  const ref  = hist[0];
+  const { bg, html } = ncComparBadge(p.precio_unitario, ref);
+
+  const tiposOpts = ['Etiqueta','Embalaje','Envase','Insumo','Materia Prima','Otro']
+    .map(t => `<option${t===p.tipo?' selected':''}>${t}</option>`).join('');
+
+  const histTabla = hist.length ? `
+    <div class="sep" style="margin:16px 0 12px;"><hr/><span style="font-size:11px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.5px;">Historial de este producto</span><hr/></div>
+    <div class="table-wrap"><table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr>
+        <th style="background:#f7fafc;padding:6px 10px;text-align:left;font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Fecha</th>
+        <th style="background:#f7fafc;padding:6px 10px;text-align:left;font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Proveedor</th>
+        <th style="background:#f7fafc;padding:6px 10px;text-align:left;font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Cliente</th>
+        <th style="background:#f7fafc;padding:6px 10px;text-align:right;font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Cant.</th>
+        <th style="background:#f7fafc;padding:6px 10px;text-align:right;font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Precio Unit.</th>
+        <th style="background:#f7fafc;padding:6px 10px;text-align:right;font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Precio Total</th>
+        <th style="background:#f7fafc;padding:6px 10px;text-align:center;font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Estado</th>
+      </tr></thead>
+      <tbody>${hist.slice(0,6).map((c,i) => `
+        <tr style="border-bottom:1px solid #f0f4f8;${i===0?'background:#fffdf0;':''}">
+          <td style="padding:7px 10px;">${c.fecha}${i===0?'<span style="margin-left:6px;font-size:9px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-weight:700;">última</span>':''}</td>
+          <td style="padding:7px 10px;"><strong>${ncEsc(c.proveedor)}</strong></td>
+          <td style="padding:7px 10px;color:#718096;">${c.proyecto||'—'}</td>
+          <td style="padding:7px 10px;text-align:right;">${fmtN(c.cantidad)}</td>
+          <td style="padding:7px 10px;text-align:right;font-weight:600;">${fmt(Math.round(c.precio_unitario))}</td>
+          <td style="padding:7px 10px;text-align:right;">${fmt(c.precio_total)}</td>
+          <td style="padding:7px 10px;text-align:center;">${estadoBadge(c.estado)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>` : `<div style="font-size:12px;color:#a0aec0;padding:10px 0;">Sin cotizaciones anteriores de este producto.</div>`;
+
+  return `
+  <div class="nc-card" id="nc-card-${idx}">
+    <div style="font-size:11px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;">📦 Producto ${idx+1}</div>
+    <div class="nc-nota">✏️ Puedes corregir cualquier campo si la extracción no fue exacta</div>
+    <div class="nc-datos-grid">
+      <div class="nc-dato">
+        <span class="nc-lbl">Proveedor</span>
+        <input id="nc-prov-${idx}" value="${ncEsc(p.proveedor)}" placeholder="Nombre del proveedor"/>
+      </div>
+      <div class="nc-dato">
+        <span class="nc-lbl">Fecha</span>
+        <input type="date" id="nc-fecha-${idx}" value="${p.fecha}"/>
+      </div>
+      <div class="nc-dato full">
+        <span class="nc-lbl">Producto</span>
+        <input id="nc-prod-${idx}" value="${ncEsc(p.producto)}" list="productos-list" oninput="ncActualizarComp(${idx})"/>
+      </div>
+      <div class="nc-dato">
+        <span class="nc-lbl">Tipo</span>
+        <select id="nc-tipo-${idx}">${tiposOpts}</select>
+      </div>
+      <div class="nc-dato">
+        <span class="nc-lbl">Unidad</span>
+        <input id="nc-unidad-${idx}" value="${ncEsc(p.unidad||'')}" placeholder="unidades, kg…"/>
+      </div>
+      <div class="nc-dato">
+        <span class="nc-lbl">Cantidad</span>
+        <input type="number" id="nc-cant-${idx}" value="${p.cantidad}" oninput="ncRecalcPU(${idx}); ncActualizarComp(${idx})"/>
+      </div>
+      <div class="nc-dato">
+        <span class="nc-lbl">Precio Total</span>
+        <input type="number" id="nc-ptotal-${idx}" value="${p.precio_total}" oninput="ncRecalcPU(${idx}); ncActualizarComp(${idx})"/>
+      </div>
+      <div class="nc-dato">
+        <span class="nc-lbl">Precio Unit.</span>
+        <input id="nc-punit-${idx}" value="${fmt(Math.round(p.precio_unitario))}" readonly style="color:#276749;font-weight:700;background:#f7fafc;"/>
+      </div>
+      <div class="nc-dato">
+        <span class="nc-lbl">Cliente</span>
+        <input id="nc-proy-${idx}" value="${ncEsc(p.proyecto||'')}" list="clientes-list" placeholder="Proyecto o cliente"/>
+      </div>
+    </div>
+    <div id="nc-comp-${idx}" class="nc-comparacion-badge" style="background:${bg};">${html}</div>
+    ${histTabla}
+  </div>`;
+}
+
+function ncRenderTablaPrevia(rows) {
+  return `
+  <div style="margin-bottom:14px;">
+    <div style="font-size:12px;color:#718096;margin-bottom:12px;">
+      Vista previa de los ${rows.length} productos extraídos. Todos se guardarán al confirmar.
+    </div>
+    <div class="table-wrap"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr>
+        <th style="background:#f7fafc;padding:8px 10px;text-align:left;font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Producto</th>
+        <th style="background:#f7fafc;padding:8px 10px;text-align:left;font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Tipo</th>
+        <th style="background:#f7fafc;padding:8px 10px;text-align:right;font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Cant.</th>
+        <th style="background:#f7fafc;padding:8px 10px;text-align:right;font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Precio Unit.</th>
+        <th style="background:#f7fafc;padding:8px 10px;text-align:right;font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">Precio Total</th>
+        <th style="background:#f7fafc;padding:8px 10px;text-align:center;font-size:11px;color:#718096;font-weight:600;text-transform:uppercase;border-bottom:2px solid #e2e8f0;">vs Historial</th>
+      </tr></thead>
+      <tbody>${rows.map(p => {
+        const ref = ncHistRef(p.producto)[0];
+        let badge = '<span class="badge badge-same">Sin ref.</span>';
+        if (ref) {
+          const v = parseFloat(pct(ref.precio_unitario, p.precio_unitario));
+          if (Math.abs(v)<0.5) badge = '<span class="badge badge-same">⚪ Igual</span>';
+          else if (v>0)        badge = `<span class="badge badge-up">🔴 +${v.toFixed(1)}%</span>`;
+          else                 badge = `<span class="badge badge-down">🟢 ${v.toFixed(1)}%</span>`;
+        }
+        return `<tr style="border-bottom:1px solid #f0f4f8;">
+          <td style="padding:8px 10px;">${ncEsc(p.producto)}</td>
+          <td style="padding:8px 10px;"><span class="badge badge-same">${p.tipo}</span></td>
+          <td style="padding:8px 10px;text-align:right;">${fmtN(p.cantidad)}</td>
+          <td style="padding:8px 10px;text-align:right;font-weight:600;">${fmt(Math.round(p.precio_unitario))}</td>
+          <td style="padding:8px 10px;text-align:right;">${fmt(p.precio_total)}</td>
+          <td style="padding:8px 10px;text-align:center;">${badge}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
+
+function ncRecalcPU(idx) {
+  const tot  = parseFloat(document.getElementById(`nc-ptotal-${idx}`)?.value);
+  const cant = parseFloat(document.getElementById(`nc-cant-${idx}`)?.value);
+  const el   = document.getElementById(`nc-punit-${idx}`);
+  if (el && tot>0 && cant>0) el.value = fmt(Math.round(tot/cant));
+}
+
+function ncActualizarComp(idx) {
+  const prod  = document.getElementById(`nc-prod-${idx}`)?.value.trim();
+  const tot   = parseFloat(document.getElementById(`nc-ptotal-${idx}`)?.value);
+  const cant  = parseFloat(document.getElementById(`nc-cant-${idx}`)?.value);
+  const box   = document.getElementById(`nc-comp-${idx}`);
+  if (!box || !prod) return;
+  const ref = ncHistRef(prod)[0];
+  const pu  = (tot>0 && cant>0) ? tot/cant : null;
+  const { bg, html } = ncComparBadge(pu || (ref ? ref.precio_unitario : 0), ref);
+  box.style.background = bg;
+  box.innerHTML = html;
+}
+
+function ncLeerCard(idx) {
+  const proveedor = document.getElementById(`nc-prov-${idx}`)?.value.trim();
+  const producto  = document.getElementById(`nc-prod-${idx}`)?.value.trim();
+  const fecha     = document.getElementById(`nc-fecha-${idx}`)?.value;
+  const tipo      = document.getElementById(`nc-tipo-${idx}`)?.value;
+  const unidad    = document.getElementById(`nc-unidad-${idx}`)?.value.trim() || null;
+  const cantidad  = parseFloat(document.getElementById(`nc-cant-${idx}`)?.value);
+  const ptotal    = parseFloat(document.getElementById(`nc-ptotal-${idx}`)?.value);
+  const proyecto  = document.getElementById(`nc-proy-${idx}`)?.value.trim() || null;
+  if (!proveedor || !producto || isNaN(cantidad) || isNaN(ptotal) || !fecha) return null;
+  const ref = ncHistRef(producto)[0];
+  return { proveedor, producto, tipo, unidad, cantidad,
+    precio_total: ptotal, precio_unitario: ptotal/cantidad, fecha, proyecto,
+    estado:'pendiente',
+    cantidad_anterior: ref ? ref.cantidad : null,
+    precio_unitario_anterior: ref ? ref.precio_unitario : null };
+}
+
+async function ncGuardarTodo() {
+  const btn = document.getElementById('nc-btn-guardar');
+  let rows = [];
+
+  if (_ncDatos.length <= 5) {
+    for (let i = 0; i < _ncDatos.length; i++) {
+      const r = ncLeerCard(i);
+      if (r) rows.push(r);
+    }
+    if (!rows.length) { alert('Completa los campos obligatorios.'); return; }
+  } else {
+    rows = _ncDatos.map(p => {
+      const ref = ncHistRef(p.producto)[0];
+      return { ...p, cantidad_anterior: ref?.cantidad||null, precio_unitario_anterior: ref?.precio_unitario||null };
+    });
+  }
+
+  btn.disabled = true; btn.textContent = '⏳ Guardando…';
+  const { error } = await db.from('cotizaciones').insert(rows);
+  btn.disabled = false; btn.textContent = '💾 Guardar cotización';
+
+  if (error) { alert('Error al guardar: ' + error.message); return; }
+
+  const msg = document.getElementById('nc-msg-guardado');
+  msg.textContent = `✅ ${rows.length} cotización${rows.length>1?'es':''} guardada${rows.length>1?'s':''} correctamente. Ve al tab Cotizaciones para verlas.`;
+  msg.style.display = 'block';
+  await renderTabla();
+  setTimeout(ncReiniciar, 3000);
+}
+
+function ncReiniciar() {
+  _ncDatos = [];
+  document.getElementById('nc-resultado').style.display  = 'none';
+  document.getElementById('nc-procesando').style.display = 'none';
+  document.getElementById('nc-dropzone').style.display   = 'block';
+  document.getElementById('nc-file-input').value         = '';
+  document.getElementById('nc-msg-guardado').style.display = 'none';
+  ncSetPaso(1);
+}
+
 // ─── INIT ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  document.getElementById('n-fecha').valueAsDate = new Date();
   document.getElementById('e-fecha').valueAsDate = new Date();
 
   const dl = document.getElementById('clientes-list');
