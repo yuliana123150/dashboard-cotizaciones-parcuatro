@@ -1,0 +1,12 @@
+node_modules/
+package-lock.json
+omitidos.txt
+read_pdf.js
+read_pdf2.js
+read_pdfs.js
+read_xlsx.js
+test2.js
+test3.js
+test_pdf.js
+supabase/
+.env
