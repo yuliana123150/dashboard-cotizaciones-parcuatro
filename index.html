@@ -1221,7 +1221,7 @@ function ncExtraerDePDF(texto, nombreArchivo) {
       .replace(/\d{6,}/g,'').replace(/cotizaci[oó]n[_\s]*/gi,'')
       .replace(/presupuesto[_\s]*/gi,'').replace(/coti[_\s]*/gi,'')
       .replace(/[_\-]+/g,' ').trim() || 'Producto';
-    if (tot && cant && pu > 0) {
+    if (tot && cant && cant > 0) {
       rows.push({ proveedor, producto: desc, tipo: ncInferirTipo(desc), fecha,
         proyecto: null, cantidad: cant, precio_total: tot,
         precio_unitario: parseFloat((tot/cant).toFixed(2)),
