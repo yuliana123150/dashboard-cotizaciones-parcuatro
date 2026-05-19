@@ -387,7 +387,31 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
+// ─── SUPABASE ──────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://rmvlwquwhwkkavzggfwi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtdmx3cXV3aHdra2F2emdnZndpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxOTk0NTgsImV4cCI6MjA5NDc3NTQ1OH0.3bwmnG2cMzJgVBHwE4q_WGfcyLvgYtQrz3xnd_se1kw';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Cache global — permite que funciones síncronas lean datos sin await
+let _cotizaciones = [];
+let _insumos = [];
+
+async function fetchCotizaciones() {
+  const { data, error } = await db.from('cotizaciones').select('*').order('producto').order('fecha', { ascending: false });
+  if (error) { console.error(error); return []; }
+  _cotizaciones = data || [];
+  return _cotizaciones;
+}
+
+async function fetchInsumos() {
+  const { data, error } = await db.from('insumos').select('*').order('fecha', { ascending: false });
+  if (error) { console.error(error); return []; }
+  _insumos = data || [];
+  return _insumos;
+}
+
 // ─── CLIENTES ──────────────────────────────────────────────────────────────
 const CLIENTES = [
   'AMOBLE','AROMA HOME','BEKOKO','BESALCO','BIDASOA',
@@ -400,23 +424,14 @@ const CLIENTES = [
   'VIRGILIO','WOM','YOUTOPIA'
 ];
 
-// ─── STORAGE ───────────────────────────────────────────────────────────────
-const KEY_COT = 'ac_cotizaciones';
-const KEY_ETI = 'ac_etiquetas';
-
-function getCotizaciones() { return JSON.parse(localStorage.getItem(KEY_COT) || '[]'); }
-function saveCotizaciones(d) { localStorage.setItem(KEY_COT, JSON.stringify(d)); }
-function getEtiquetas() { return JSON.parse(localStorage.getItem(KEY_ETI) || '[]'); }
-function saveEtiquetas(d) { localStorage.setItem(KEY_ETI, JSON.stringify(d)); }
-
 // ─── TABS ──────────────────────────────────────────────────────────────────
 function showTab(id) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + id).classList.add('active');
   event.currentTarget.classList.add('active');
-  if (id === 'cotizaciones') { renderStats(); renderTabla(); }
-  if (id === 'etiquetas') { renderEtiquetas(); }
+  if (id === 'cotizaciones') renderTabla();
+  if (id === 'etiquetas') renderEtiquetas();
 }
 
 // ─── UTILIDADES ────────────────────────────────────────────────────────────
@@ -459,7 +474,7 @@ function calcularUnitario() {
 }
 
 // ─── GUARDAR COTIZACIÓN ────────────────────────────────────────────────────
-function guardarCotizacion() {
+async function guardarCotizacion() {
   const proveedor = document.getElementById('n-proveedor').value.trim();
   const producto  = document.getElementById('n-producto').value.trim();
   const cantidad  = parseFloat(document.getElementById('n-cantidad').value);
@@ -471,49 +486,45 @@ function guardarCotizacion() {
     return;
   }
 
-  const cotizaciones = getCotizaciones();
-
-  // Buscar cotización anterior del mismo producto (cualquier proveedor)
-  const anteriores = cotizaciones
+  // Buscar cotización anterior del mismo producto en caché
+  const anteriores = _cotizaciones
     .filter(c => c.producto.toLowerCase() === producto.toLowerCase())
     .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-  const anterior = anteriores.length > 0 ? anteriores[0] : null;
+  const anterior = anteriores[0] || null;
 
   const nueva = {
-    id: Date.now(),
     proveedor,
     producto,
-    tipo: document.getElementById('n-tipo').value,
-    unidad: document.getElementById('n-unidad').value.trim(),
+    tipo:                   document.getElementById('n-tipo').value || null,
+    unidad:                 document.getElementById('n-unidad').value.trim() || null,
     cantidad,
-    precioTotal: total,
-    precioUnitario: total / cantidad,
+    precio_total:           total,
+    precio_unitario:        total / cantidad,
     fecha,
-    proyecto: document.getElementById('n-proyecto').value.trim(),
-    emailProveedor: document.getElementById('n-email-proveedor').value.trim(),
-    contacto: document.getElementById('n-contacto').value.trim(),
-    notas: document.getElementById('n-notas').value.trim(),
-    estado: 'pendiente',
-    cantidadAnterior: anterior ? anterior.cantidad : null,
-    precioUnitarioAnterior: anterior ? anterior.precioUnitario : null,
+    proyecto:               document.getElementById('n-proyecto').value.trim() || null,
+    email_proveedor:        document.getElementById('n-email-proveedor').value.trim() || null,
+    contacto:               document.getElementById('n-contacto').value.trim() || null,
+    notas:                  document.getElementById('n-notas').value.trim() || null,
+    estado:                 'pendiente',
+    cantidad_anterior:      anterior ? anterior.cantidad : null,
+    precio_unitario_anterior: anterior ? anterior.precio_unitario : null,
   };
 
-  cotizaciones.push(nueva);
-  saveCotizaciones(cotizaciones);
+  const { error } = await db.from('cotizaciones').insert(nueva);
+  if (error) { alert('Error al guardar: ' + error.message); return; }
 
   const msg = document.getElementById('msg-guardado');
   msg.style.display = 'block';
   if (anterior) {
-    const v = pct(anterior.precioUnitario, nueva.precioUnitario);
+    const v = pct(anterior.precio_unitario, nueva.precio_unitario);
     const dir = parseFloat(v) > 0 ? `subió un ${v}%` : parseFloat(v) < 0 ? `bajó un ${Math.abs(v)}%` : 'se mantuvo igual';
     msg.textContent = `✅ Cotización guardada. El precio unitario ${dir} respecto a la cotización anterior.`;
   } else {
-    msg.textContent = '✅ Cotización guardada (primera vez para este proveedor/producto).';
+    msg.textContent = '✅ Cotización guardada (primera vez para este producto).';
   }
   setTimeout(() => { msg.style.display = 'none'; }, 5000);
   limpiarFormulario();
-  actualizarFiltroProductos();
+  await renderTabla();
 }
 
 function limpiarFormulario() {
@@ -527,12 +538,11 @@ function limpiarFormulario() {
 
 // ─── STATS ─────────────────────────────────────────────────────────────────
 function renderStats() {
-  const data = getCotizaciones();
+  const data = _cotizaciones;
   const pendientes = data.filter(c => c.estado === 'pendiente').length;
   const aprobadas  = data.filter(c => c.estado === 'aprobada').length;
   const rechazadas = data.filter(c => c.estado === 'rechazada').length;
-  const subieron   = data.filter(c => c.precioUnitarioAnterior && c.precioUnitario > c.precioUnitarioAnterior).length;
-
+  const subieron   = data.filter(c => c.precio_unitario_anterior && c.precio_unitario > c.precio_unitario_anterior).length;
   document.getElementById('stats-row').innerHTML = `
     <div class="stat-card"><div class="num">${data.length}</div><div class="lbl">Total cotizaciones</div></div>
     <div class="stat-card"><div class="num" style="color:#b7791f">${pendientes}</div><div class="lbl">Pendientes</div></div>
@@ -544,8 +554,7 @@ function renderStats() {
 
 // ─── FILTRO PRODUCTOS ──────────────────────────────────────────────────────
 function actualizarFiltroProductos() {
-  const data = getCotizaciones();
-  const productos = [...new Set(data.map(c => c.producto))].sort();
+  const productos = [...new Set(_cotizaciones.map(c => c.producto))].sort();
   const sel = document.getElementById('filtro-producto');
   const actual = sel.value;
   sel.innerHTML = '<option value="">Todos los productos</option>' +
@@ -553,10 +562,12 @@ function actualizarFiltroProductos() {
 }
 
 // ─── TABLA COTIZACIONES ────────────────────────────────────────────────────
-function renderTabla() {
+async function renderTabla() {
+  await fetchCotizaciones();
   renderStats();
   actualizarFiltroProductos();
-  let data = getCotizaciones();
+
+  let data = [..._cotizaciones];
   const fp  = document.getElementById('filtro-proveedor')?.value.toLowerCase() || '';
   const fe  = document.getElementById('filtro-estado')?.value || '';
   const fpr = document.getElementById('filtro-producto')?.value || '';
@@ -567,7 +578,6 @@ function renderTabla() {
   if (fpr) data = data.filter(c => c.producto === fpr);
   if (fcl) data = data.filter(c => c.proyecto === fcl);
 
-  // Agrupar por producto, dentro de cada producto ordenar por fecha descendente
   data.sort((a, b) => {
     const prod = a.producto.localeCompare(b.producto, 'es');
     if (prod !== 0) return prod;
@@ -586,8 +596,8 @@ function renderTabla() {
 
   let productoActual = null;
   tbody.innerHTML = data.map(c => {
-    const vPrecio = varBadge(c.precioUnitarioAnterior, c.precioUnitario);
-    const vCant   = varBadge(c.cantidadAnterior, c.cantidad);
+    const vPrecio = varBadge(c.precio_unitario_anterior, c.precio_unitario);
+    const vCant   = varBadge(c.cantidad_anterior, c.cantidad);
     let header = '';
     if (c.producto !== productoActual) {
       productoActual = c.producto;
@@ -602,10 +612,10 @@ function renderTabla() {
         <td>${c.fecha}</td>
         <td><strong>${c.proveedor}</strong></td>
         <td style="color:#718096;font-size:12px;">${c.proyecto || '—'}</td>
-        <td>${c.cantidadAnterior != null ? fmtN(c.cantidadAnterior) : '<span style="color:#a0aec0">—</span>'}</td>
-        <td>${c.precioUnitarioAnterior != null ? fmt(c.precioUnitarioAnterior.toFixed(0)) : '<span style="color:#a0aec0">—</span>'}</td>
+        <td>${c.cantidad_anterior != null ? fmtN(c.cantidad_anterior) : '<span style="color:#a0aec0">—</span>'}</td>
+        <td>${c.precio_unitario_anterior != null ? fmt(Number(c.precio_unitario_anterior).toFixed(0)) : '<span style="color:#a0aec0">—</span>'}</td>
         <td>${fmtN(c.cantidad)}</td>
-        <td>${fmt(c.precioUnitario.toFixed(0))}</td>
+        <td>${fmt(Number(c.precio_unitario).toFixed(0))}</td>
         <td>${vPrecio}</td>
         <td>${vCant}</td>
         <td>${estadoBadge(c.estado)}</td>
@@ -623,7 +633,7 @@ function renderTabla() {
 
 // ─── DETALLE ───────────────────────────────────────────────────────────────
 function verDetalle(id) {
-  const c = getCotizaciones().find(x => x.id === id);
+  const c = _cotizaciones.find(x => x.id === id);
   if (!c) return;
   document.getElementById('modal-title').textContent = `📄 ${c.proveedor} — ${c.producto}`;
   document.getElementById('modal-body').innerHTML = `
@@ -631,23 +641,23 @@ function verDetalle(id) {
       <tr><td style="color:#718096;padding:5px 0;width:40%">Fecha</td><td><strong>${c.fecha}</strong></td></tr>
       <tr><td style="color:#718096;padding:5px 0">Proveedor</td><td><strong>${c.proveedor}</strong></td></tr>
       <tr><td style="color:#718096;padding:5px 0">Contacto</td><td>${c.contacto || '—'}</td></tr>
-      <tr><td style="color:#718096;padding:5px 0">Email</td><td>${c.emailProveedor || '—'}</td></tr>
+      <tr><td style="color:#718096;padding:5px 0">Email</td><td>${c.email_proveedor || '—'}</td></tr>
       <tr><td style="color:#718096;padding:5px 0">Producto</td><td>${c.producto}</td></tr>
       <tr><td style="color:#718096;padding:5px 0">Tipo</td><td>${c.tipo || '—'}</td></tr>
       <tr><td style="color:#718096;padding:5px 0">Unidad</td><td>${c.unidad || '—'}</td></tr>
-      <tr><td style="color:#718096;padding:5px 0">Cantidad nueva</td><td>${fmtN(c.cantidad)}</td></tr>
-      <tr><td style="color:#718096;padding:5px 0">Precio total</td><td>${fmt(c.precioTotal)}</td></tr>
-      <tr><td style="color:#718096;padding:5px 0">Precio unitario</td><td><strong>${fmt(c.precioUnitario.toFixed(0))}</strong></td></tr>
-      <tr><td style="color:#718096;padding:5px 0">Precio unit. anterior</td><td>${c.precioUnitarioAnterior != null ? fmt(c.precioUnitarioAnterior.toFixed(0)) : '<em style="color:#a0aec0">Sin referencia</em>'}</td></tr>
-      <tr><td style="color:#718096;padding:5px 0">Variación precio</td><td>${varBadge(c.precioUnitarioAnterior, c.precioUnitario)}</td></tr>
-      <tr><td style="color:#718096;padding:5px 0">Variación cantidad</td><td>${varBadge(c.cantidadAnterior, c.cantidad)}</td></tr>
+      <tr><td style="color:#718096;padding:5px 0">Cantidad</td><td>${fmtN(c.cantidad)}</td></tr>
+      <tr><td style="color:#718096;padding:5px 0">Precio total</td><td>${fmt(c.precio_total)}</td></tr>
+      <tr><td style="color:#718096;padding:5px 0">Precio unitario</td><td><strong>${fmt(Number(c.precio_unitario).toFixed(0))}</strong></td></tr>
+      <tr><td style="color:#718096;padding:5px 0">Precio unit. anterior</td><td>${c.precio_unitario_anterior != null ? fmt(Number(c.precio_unitario_anterior).toFixed(0)) : '<em style="color:#a0aec0">Sin referencia</em>'}</td></tr>
+      <tr><td style="color:#718096;padding:5px 0">Variación precio</td><td>${varBadge(c.precio_unitario_anterior, c.precio_unitario)}</td></tr>
+      <tr><td style="color:#718096;padding:5px 0">Variación cantidad</td><td>${varBadge(c.cantidad_anterior, c.cantidad)}</td></tr>
       <tr><td style="color:#718096;padding:5px 0">Proyecto</td><td>${c.proyecto || '—'}</td></tr>
       <tr><td style="color:#718096;padding:5px 0">Estado</td><td>${estadoBadge(c.estado)}</td></tr>
       <tr><td style="color:#718096;padding:5px 0">Notas</td><td>${c.notas || '—'}</td></tr>
     </table>
     ${c.estado === 'pendiente' ? `
       <div class="btn-row">
-        <button class="btn btn-success" onclick="aprobar(${c.id}); closeModal();">✅ Aprobar y generar correo VB</button>
+        <button class="btn btn-success" onclick="aprobar(${c.id})">✅ Aprobar y generar correo VB</button>
         <button class="btn btn-danger" onclick="rechazar(${c.id}); closeModal();">❌ Rechazar</button>
       </div>` : ''}
     ${c.estado === 'aprobada' ? `
@@ -664,7 +674,7 @@ function verDetalle(id) {
 
 // ─── GENERAR CORREO VB ─────────────────────────────────────────────────────
 function generarCorreo(c) {
-  const contacto = c.contacto ? c.contacto : 'equipo';
+  const contacto = c.contacto || 'equipo';
   const fecha = new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' });
   return `Estimado/a ${contacto},
 
@@ -672,8 +682,8 @@ Junto con saludar, me comunico para informarle que hemos revisado su cotización
 
   • Producto: ${c.producto}${c.tipo ? ' (' + c.tipo + ')' : ''}
   • Cantidad: ${fmtN(c.cantidad)} ${c.unidad || 'unidades'}
-  • Precio unitario: ${fmt(c.precioUnitario.toFixed(0))}
-  • Precio total: ${fmt(c.precioTotal)}
+  • Precio unitario: ${fmt(Number(c.precio_unitario).toFixed(0))}
+  • Precio total: ${fmt(c.precio_total)}
   ${c.proyecto ? '• Proyecto: ' + c.proyecto : ''}
 
 Nos complace informarle que la cotización ha sido APROBADA.
@@ -698,45 +708,39 @@ function copiarCorreo(id) {
 }
 
 // ─── APROBAR / RECHAZAR ────────────────────────────────────────────────────
-function aprobar(id) {
-  const data = getCotizaciones();
-  const c = data.find(x => x.id === id);
-  if (!c) return;
-  c.estado = 'aprobada';
-  saveCotizaciones(data);
-  renderTabla();
+async function aprobar(id) {
+  const { error } = await db.from('cotizaciones').update({ estado: 'aprobada' }).eq('id', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  await renderTabla();
   verDetalle(id);
 }
 
-function rechazar(id) {
-  const data = getCotizaciones();
-  const c = data.find(x => x.id === id);
-  if (!c) return;
-  if (!confirm(`¿Confirmas rechazar la cotización de ${c.proveedor} — ${c.producto}?`)) return;
-  c.estado = 'rechazada';
-  saveCotizaciones(data);
-  renderTabla();
+async function rechazar(id) {
+  const c = _cotizaciones.find(x => x.id === id);
+  if (!c || !confirm(`¿Confirmas rechazar la cotización de ${c.proveedor} — ${c.producto}?`)) return;
+  const { error } = await db.from('cotizaciones').update({ estado: 'rechazada' }).eq('id', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  await renderTabla();
 }
 
-function eliminar(id) {
-  const data = getCotizaciones();
-  const c = data.find(x => x.id === id);
-  if (!c) return;
-  if (!confirm(`¿Eliminar la cotización de ${c.proveedor} — ${c.producto}? Esta acción no se puede deshacer.`)) return;
-  saveCotizaciones(data.filter(x => x.id !== id));
-  renderTabla();
+async function eliminar(id) {
+  const c = _cotizaciones.find(x => x.id === id);
+  if (!c || !confirm(`¿Eliminar la cotización de ${c.proveedor} — ${c.producto}? Esta acción no se puede deshacer.`)) return;
+  const { error } = await db.from('cotizaciones').delete().eq('id', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  await renderTabla();
 }
 
 // ─── MODAL ─────────────────────────────────────────────────────────────────
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
 function closeModalOverlay(e) { if (e.target === document.getElementById('modal-overlay')) closeModal(); }
 
-// ─── ETIQUETAS ─────────────────────────────────────────────────────────────
-function guardarEtiqueta() {
+// ─── INSUMOS ───────────────────────────────────────────────────────────────
+async function guardarEtiqueta() {
   const proyecto  = document.getElementById('e-proyecto').value.trim();
   const tipo      = document.getElementById('e-tipo').value.trim();
-  const categoria = document.getElementById('e-categoria').value;
-  const unidad    = document.getElementById('e-unidad').value.trim();
+  const categoria = document.getElementById('e-categoria').value || null;
+  const unidad    = document.getElementById('e-unidad').value.trim() || null;
   const cantidad  = parseInt(document.getElementById('e-cantidad').value);
   const fecha     = document.getElementById('e-fecha').value;
 
@@ -745,9 +749,8 @@ function guardarEtiqueta() {
     return;
   }
 
-  const data = getEtiquetas();
-  data.push({ id: Date.now(), proyecto, tipo, categoria, unidad, cantidad, fecha });
-  saveEtiquetas(data);
+  const { error } = await db.from('insumos').insert({ proyecto, tipo, categoria, unidad, cantidad, fecha });
+  if (error) { alert('Error al guardar: ' + error.message); return; }
 
   const msg = document.getElementById('msg-etiqueta');
   msg.textContent = `✅ Registrado: ${cantidad} ${unidad || 'unidades'} de "${tipo}" para ${proyecto}.`;
@@ -760,29 +763,26 @@ function guardarEtiqueta() {
   document.getElementById('e-unidad').value = '';
   document.getElementById('e-cantidad').value = '';
 
-  renderEtiquetas();
+  await renderEtiquetas();
 }
 
-function renderEtiquetas() {
-  const data = getEtiquetas();
+async function renderEtiquetas() {
+  await fetchInsumos();
+  const data = _insumos;
   const filtroCategoria = document.getElementById('filtro-categoria-insumo')?.value || '';
 
-  // Actualizar datalists
   const tipos = [...new Set(data.map(e => e.tipo))].sort();
-  document.getElementById('tipos-etiqueta-list').innerHTML =
-    tipos.map(t => `<option value="${t}">`).join('');
+  document.getElementById('tipos-etiqueta-list').innerHTML = tipos.map(t => `<option value="${t}">`).join('');
 
-  // Historial
   const tbody = document.getElementById('etiquetas-historial');
   const empty = document.getElementById('empty-etiquetas');
-  const sorted = [...data].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 
   if (data.length === 0) {
     tbody.innerHTML = '';
     empty.style.display = 'block';
   } else {
     empty.style.display = 'none';
-    tbody.innerHTML = sorted.map(e => `
+    tbody.innerHTML = data.map(e => `
       <tr>
         <td>${e.fecha}</td>
         <td>${e.proyecto}</td>
@@ -794,15 +794,13 @@ function renderEtiquetas() {
       </tr>`).join('');
   }
 
-  // Estimado anual — filtrar por categoría si aplica
   const dataFiltrada = filtroCategoria ? data.filter(e => e.categoria === filtroCategoria) : data;
   const resumen = {};
   dataFiltrada.forEach(e => {
-    const key = e.tipo;
-    if (!resumen[key]) resumen[key] = { total: 0, fechas: [], unidad: e.unidad || 'u.', categoria: e.categoria || '' };
-    resumen[key].total += e.cantidad;
-    resumen[key].fechas.push(new Date(e.fecha));
-    if (e.unidad) resumen[key].unidad = e.unidad;
+    if (!resumen[e.tipo]) resumen[e.tipo] = { total: 0, fechas: [], unidad: e.unidad || 'u.', categoria: e.categoria || '' };
+    resumen[e.tipo].total += e.cantidad;
+    resumen[e.tipo].fechas.push(new Date(e.fecha));
+    if (e.unidad) resumen[e.tipo].unidad = e.unidad;
   });
 
   const contenedor = document.getElementById('etiquetas-resumen');
@@ -812,7 +810,6 @@ function renderEtiquetas() {
   }
 
   const maxTotal = Math.max(...Object.values(resumen).map(r => r.total));
-
   contenedor.innerHTML = Object.entries(resumen)
     .sort((a, b) => b[1].total - a[1].total)
     .map(([tipo, r]) => {
@@ -836,35 +833,31 @@ function renderEtiquetas() {
               Estimado anual: <strong style="color:#e8a838;">${fmtN(estimadoAnual)}</strong> ${r.unidad}
             </span>
           </div>
-          <div class="progress-bar-wrap">
-            <div class="progress-bar" style="width:${pctBar}%"></div>
-          </div>
+          <div class="progress-bar-wrap"><div class="progress-bar" style="width:${pctBar}%"></div></div>
         </div>`;
     }).join('');
 }
 
-function eliminarEtiqueta(id) {
+async function eliminarEtiqueta(id) {
   if (!confirm('¿Eliminar este registro?')) return;
-  saveEtiquetas(getEtiquetas().filter(e => e.id !== id));
-  renderEtiquetas();
+  const { error } = await db.from('insumos').delete().eq('id', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  await renderEtiquetas();
 }
 
 // ─── INIT ──────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('n-fecha').valueAsDate = new Date();
   document.getElementById('e-fecha').valueAsDate = new Date();
 
-  // Poblar datalist compartido de clientes
   const dl = document.getElementById('clientes-list');
   dl.innerHTML = CLIENTES.map(c => `<option value="${c}">`).join('');
 
-  // Poblar select filtro de clientes en tabla cotizaciones
   const sel = document.getElementById('filtro-cliente');
   sel.innerHTML = '<option value="">Todos los clientes</option>' +
     CLIENTES.map(c => `<option value="${c}">${c}</option>`).join('');
 
-  renderStats();
-  renderTabla();
+  await renderTabla();
 });
 </script>
 </body>
