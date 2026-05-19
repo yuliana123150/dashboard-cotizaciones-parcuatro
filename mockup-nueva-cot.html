@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Mockup — Nueva Cotización</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; }
+header {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: white; padding: 18px 32px; display: flex; align-items: center; gap: 16px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+header .logo { font-size: 22px; font-weight: 700; letter-spacing: 1px; }
+header .sub  { font-size: 13px; color: #a0aec0; }
+nav { background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; gap: 4px; padding: 0 32px; }
+nav button {
+  padding: 14px 22px; border: none; background: none; cursor: pointer;
+  font-size: 14px; font-weight: 500; color: #718096; border-bottom: 3px solid transparent;
+}
+nav button.active { color: #1a1a2e; border-bottom-color: #e8a838; }
+main { padding: 28px 32px; max-width: 1000px; margin: 0 auto; }
+.card {
+  background: #fff; border-radius: 12px; padding: 28px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 20px;
+}
+.card h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: #2d3748; }
+.card .sub { font-size: 13px; color: #a0aec0; margin-bottom: 20px; }
+
+/* ── DROP ZONE ── */
+.dropzone {
+  border: 2.5px dashed #c7d2fe;
+  border-radius: 14px; padding: 48px 32px;
+  text-align: center; background: #f8f9ff;
+  transition: all .2s; cursor: pointer;
+}
+.dropzone:hover { border-color: #e8a838; background: #fffdf5; }
+.dropzone .icon { font-size: 48px; margin-bottom: 12px; }
+.dropzone .titulo { font-size: 17px; font-weight: 700; color: #2d3748; margin-bottom: 6px; }
+.dropzone .desc { font-size: 13px; color: #718096; margin-bottom: 20px; }
+.dropzone .btn-upload {
+  display: inline-block; padding: 12px 28px; background: #1a1a2e; color: #fff;
+  border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer;
+  border: none; transition: background .2s;
+}
+.dropzone .btn-upload:hover { background: #2d3748; }
+.formatos { font-size: 11px; color: #a0aec0; margin-top: 12px; }
+
+/* ── ESTADO: PROCESANDO ── */
+.procesando {
+  text-align: center; padding: 36px; display: none;
+}
+.procesando .spinner {
+  width: 40px; height: 40px; border: 4px solid #e2e8f0;
+  border-top-color: #e8a838; border-radius: 50%;
+  animation: spin .8s linear infinite; margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── RESULTADO EXTRAÍDO ── */
+.resultado { display: none; }
+.resultado-header {
+  display: flex; align-items: center; gap: 12px;
+  background: #f0fff4; border: 1px solid #9ae6b4; border-radius: 10px;
+  padding: 14px 18px; margin-bottom: 20px;
+}
+.resultado-header .check { font-size: 22px; }
+.resultado-header .info { flex: 1; }
+.resultado-header .info strong { font-size: 15px; color: #276749; }
+.resultado-header .info div { font-size: 12px; color: #68d391; margin-top: 2px; }
+.resultado-header .rehacer {
+  font-size: 12px; color: #718096; cursor: pointer; text-decoration: underline;
+}
+
+/* Tabla de datos extraídos */
+.datos-extraidos {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+  border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;
+  margin-bottom: 24px; font-size: 13px;
+}
+.dato { display: flex; border-bottom: 1px solid #f0f4f8; }
+.dato:last-child, .dato:nth-last-child(2) { border-bottom: none; }
+.dato .lbl {
+  width: 140px; min-width: 140px; padding: 10px 14px;
+  background: #f7fafc; color: #718096; font-weight: 600; font-size: 12px;
+}
+.dato .val { padding: 10px 14px; color: #2d3748; font-weight: 500; }
+.dato .val.editable {
+  flex: 1; border: none; outline: none; font-size: 13px; color: #2d3748; font-weight: 500;
+  background: transparent; cursor: text;
+}
+.dato .val.editable:focus { background: #fffdf5; }
+.dato-full { grid-column: 1 / -1; }
+
+/* ── SEPARADOR ── */
+.sep {
+  display: flex; align-items: center; gap: 12px; margin: 24px 0 16px;
+}
+.sep hr { flex: 1; border: none; border-top: 1px solid #e2e8f0; }
+.sep span { font-size: 12px; font-weight: 700; color: #718096; text-transform: uppercase; letter-spacing: .5px; }
+
+/* ── COMPARACIÓN ── */
+.comparacion-resumen {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 20px;
+}
+.kpi {
+  background: #f7fafc; border-radius: 10px; padding: 14px 16px; text-align: center;
+}
+.kpi .num { font-size: 24px; font-weight: 700; }
+.kpi .lbl { font-size: 11px; color: #718096; margin-top: 3px; }
+.kpi.rojo  { background: #fff5f5; }
+.kpi.verde { background: #f0fff4; }
+.kpi.neutro { background: #f7fafc; }
+.kpi.rojo  .num { color: #c53030; }
+.kpi.verde .num { color: #276749; }
+
+/* Tabla historial */
+.hist-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  background: #f7fafc; padding: 9px 12px; text-align: left;
+  font-size: 11px; color: #718096; font-weight: 600; text-transform: uppercase;
+  border-bottom: 2px solid #e2e8f0;
+}
+tbody tr { border-bottom: 1px solid #f0f4f8; }
+tbody td { padding: 9px 12px; color: #2d3748; }
+.row-nueva td { background: #fffdf0 !important; font-weight: 600; }
+.row-nueva td:first-child::before {
+  content: '← nueva'; display: inline-block; margin-left: 6px;
+  font-size: 10px; background: #fef3c7; color: #92400e;
+  padding: 1px 7px; border-radius: 4px; font-weight: 700;
+}
+.badge { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 700; }
+.badge-up   { background: #fff5f5; color: #c53030; }
+.badge-down { background: #f0fff4; color: #276749; }
+.badge-same { background: #f7fafc; color: #718096; }
+
+/* ── BOTONES ── */
+.btn-row { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+.btn { padding: 11px 22px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all .2s; }
+.btn-primary { background: #1a1a2e; color: white; }
+.btn-gold    { background: #e8a838; color: #1a1a2e; }
+.btn-ghost   { background: #e2e8f0; color: #718096; }
+
+/* ── NOTA DE EDICIÓN ── */
+.nota-edicion {
+  font-size: 11px; color: #a0aec0; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 6px;
+}
+
+/* Estado pasos */
+.pasos { display: flex; gap: 0; margin-bottom: 24px; }
+.paso {
+  flex: 1; text-align: center; padding: 10px 8px;
+  font-size: 12px; font-weight: 600; color: #a0aec0;
+  border-bottom: 3px solid #e2e8f0; position: relative;
+}
+.paso.activo { color: #1a1a2e; border-bottom-color: #e8a838; }
+.paso.hecho  { color: #276749; border-bottom-color: #68d391; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">🌿 Par Cuatro</div>
+    <div class="sub">Dashboard de Cotizaciones</div>
+  </div>
+</header>
+
+<nav>
+  <button onclick="showTab('drop')">📋 Cotizaciones</button>
+  <button class="active">➕ Nueva Cotización</button>
+  <button>📦 Estimador Insumos</button>
+</nav>
+
+<main>
+
+<!-- ──────────────────────────────────────────────── PASO 1: SUBIR ARCHIVO -->
+<div id="tab-drop">
+  <div class="card">
+    <h2>Nueva Cotización</h2>
+    <p class="sub">Sube el PDF o Excel que te envió el proveedor — el sistema extrae los datos y compara automáticamente.</p>
+
+    <!-- Pasos -->
+    <div class="pasos">
+      <div class="paso activo" id="paso1">① Subir archivo</div>
+      <div class="paso"        id="paso2">② Revisar datos extraídos</div>
+      <div class="paso"        id="paso3">③ Comparación &amp; guardar</div>
+    </div>
+
+    <!-- Drop zone -->
+    <div class="dropzone" id="dropzone" onclick="simularCarga()">
+      <div class="icon">📂</div>
+      <div class="titulo">Arrastra aquí el archivo de cotización</div>
+      <div class="desc">O haz clic para buscar en tu computador</div>
+      <button class="btn-upload" onclick="event.stopPropagation(); simularCarga()">
+        📎 Seleccionar PDF o Excel
+      </button>
+      <div class="formatos">Formatos aceptados: .pdf · .xlsx · .xls</div>
+    </div>
+
+    <!-- Procesando -->
+    <div class="procesando" id="procesando">
+      <div class="spinner"></div>
+      <div style="font-size:15px;font-weight:600;color:#2d3748;">Extrayendo datos del archivo…</div>
+      <div style="font-size:12px;color:#a0aec0;margin-top:6px;">Leyendo cotización de ANTALIS</div>
+    </div>
+
+    <!-- Resultado extraído -->
+    <div class="resultado" id="resultado">
+
+      <div class="resultado-header">
+        <div class="check">✅</div>
+        <div class="info">
+          <strong>Datos extraídos de "20834236 PAR CUATRO S.A 17-11-25 antalis.pdf"</strong>
+          <div>8 campos identificados · Revisa que todo esté correcto antes de guardar</div>
+        </div>
+        <span class="rehacer" onclick="reiniciar()">✕ Cambiar archivo</span>
+      </div>
+
+      <!-- Paso 2 activo -->
+      <script>
+        function activarPaso(n) {
+          document.querySelectorAll('.paso').forEach((p,i) => {
+            p.className = 'paso' + (i+1 < n ? ' hecho' : i+1 === n ? ' activo' : '');
+          });
+        }
+      </script>
+
+      <div class="nota-edicion">
+        ✏️ Puedes corregir cualquier campo haciendo clic sobre el valor
+      </div>
+
+      <!-- Datos extraídos (editables) -->
+      <div class="datos-extraidos">
+        <div class="dato">
+          <span class="lbl">Proveedor</span>
+          <input class="val editable" value="ANTALIS"/>
+        </div>
+        <div class="dato">
+          <span class="lbl">Fecha</span>
+          <input class="val editable" value="2025-11-17"/>
+        </div>
+        <div class="dato dato-full">
+          <span class="lbl">Producto</span>
+          <input class="val editable" style="flex:1" value="Papel Couché 115g · Rollo 1.020mm"/>
+        </div>
+        <div class="dato">
+          <span class="lbl">Tipo</span>
+          <input class="val editable" value="Insumo"/>
+        </div>
+        <div class="dato">
+          <span class="lbl">Unidad</span>
+          <input class="val editable" value="kg"/>
+        </div>
+        <div class="dato">
+          <span class="lbl">Cantidad</span>
+          <input class="val editable" value="500"/>
+        </div>
+        <div class="dato">
+          <span class="lbl">Precio Total</span>
+          <input class="val editable" value="$387.500"/>
+        </div>
+        <div class="dato">
+          <span class="lbl">Precio Unitario</span>
+          <input class="val editable" value="$775 / kg" style="font-weight:700;color:#276749;"/>
+        </div>
+        <div class="dato dato-full">
+          <span class="lbl">Proyecto</span>
+          <input class="val editable" style="flex:1" value="BEKOKO"/>
+        </div>
+      </div>
+
+      <!-- Separador -->
+      <div class="sep"><hr/><span>📊 Comparación con historial</span><hr/></div>
+
+      <!-- KPIs resumen -->
+      <div class="comparacion-resumen">
+        <div class="kpi rojo">
+          <div class="num">+12,8%</div>
+          <div class="lbl">vs última cotización<br/><small>(ago-2025)</small></div>
+        </div>
+        <div class="kpi neutro">
+          <div class="num">4</div>
+          <div class="lbl">cotizaciones anteriores<br/>del mismo producto</div>
+        </div>
+        <div class="kpi verde">
+          <div class="num">$686</div>
+          <div class="lbl">precio mínimo histórico<br/>(DULOX, mar-2025)</div>
+        </div>
+      </div>
+
+      <!-- Tabla de historial + nueva -->
+      <div class="hist-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Proveedor</th>
+              <th>Cliente</th>
+              <th style="text-align:right">Cantidad</th>
+              <th style="text-align:right">Precio Unit.</th>
+              <th style="text-align:right">Precio Total</th>
+              <th>Var. Precio</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="row-nueva">
+              <td>2025-11-17</td>
+              <td>ANTALIS</td>
+              <td style="color:#718096;font-size:12px;">BEKOKO</td>
+              <td style="text-align:right">500</td>
+              <td style="text-align:right">$775</td>
+              <td style="text-align:right">$387.500</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>2025-08-10</td>
+              <td>ANTALIS</td>
+              <td style="color:#718096;font-size:12px;">MADISON</td>
+              <td style="text-align:right">500</td>
+              <td style="text-align:right">$687</td>
+              <td style="text-align:right">$343.500</td>
+              <td><span class="badge badge-up">🔴 +12,8%</span></td>
+            </tr>
+            <tr>
+              <td>2025-03-15</td>
+              <td>DULOX</td>
+              <td style="color:#718096;font-size:12px;">BEKOKO</td>
+              <td style="text-align:right">1.000</td>
+              <td style="text-align:right">$686</td>
+              <td style="text-align:right">$686.000</td>
+              <td><span class="badge badge-up">🔴 +13,0%</span></td>
+            </tr>
+            <tr>
+              <td>2024-11-20</td>
+              <td>ANTALIS</td>
+              <td style="color:#718096;font-size:12px;">AMOBLE</td>
+              <td style="text-align:right">500</td>
+              <td style="text-align:right">$710</td>
+              <td style="text-align:right">$355.000</td>
+              <td><span class="badge badge-down">🟢 −3,4%</span></td>
+            </tr>
+            <tr>
+              <td>2024-06-05</td>
+              <td>ANTALIS</td>
+              <td style="color:#718096;font-size:12px;">CANNON</td>
+              <td style="text-align:right">500</td>
+              <td style="text-align:right">$735</td>
+              <td style="text-align:right">$367.500</td>
+              <td><span class="badge badge-same">⚪ —</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Botones -->
+      <div class="btn-row">
+        <button class="btn btn-primary">💾 Guardar cotización</button>
+        <button class="btn btn-ghost" onclick="reiniciar()">🔄 Subir otro archivo</button>
+      </div>
+
+    </div><!-- /resultado -->
+  </div><!-- /card -->
+</div>
+
+</main>
+
+<script>
+function simularCarga() {
+  document.getElementById('dropzone').style.display = 'none';
+  document.getElementById('procesando').style.display = 'block';
+  activarPaso(2);
+  setTimeout(() => {
+    document.getElementById('procesando').style.display = 'none';
+    document.getElementById('resultado').style.display = 'block';
+    activarPaso(3);
+  }, 1800);
+}
+
+function activarPaso(n) {
+  document.querySelectorAll('.paso').forEach((p,i) => {
+    if (i+1 < n)      { p.className = 'paso hecho'; }
+    else if (i+1 === n) { p.className = 'paso activo'; }
+    else              { p.className = 'paso'; }
+  });
+}
+
+function reiniciar() {
+  document.getElementById('resultado').style.display = 'none';
+  document.getElementById('dropzone').style.display = 'block';
+  activarPaso(1);
+}
+
+function showTab() {}
+</script>
+</body>
+</html>

@@ -78,6 +78,31 @@ DASHBOARD COTIZACIONES/
 
 ## Historial de versiones
 
+### v1.1.0 — 2026-05-19
+Mejoras post-lanzamiento:
+
+**Conexión a Supabase (base de datos en la nube)**
+- Migración de localStorage → Supabase (PostgreSQL)
+- Tabla `cotizaciones` y tabla `insumos`; RLS con políticas permisivas (anon puede leer/escribir)
+- Caché global `_cotizaciones` / `_insumos` para mantener onclick handlers síncronos
+
+**Importación masiva de historial**
+- Script `importar.js` (Node.js) que escanea todas las carpetas de clientes
+- Lee PDFs con `pdf2json` y Excel con `xlsx`
+- Extrae: proveedor, fecha, producto, tipo, cantidad, precio unitario, precio total
+- 421 registros históricos importados desde 28 clientes en la primera ejecución
+- Archivos sin datos extraíbles guardados en `omitidos.txt`
+
+**Panel de historial en tiempo real (Nueva Cotización)**
+- Al escribir el nombre del producto aparece un panel con cotizaciones anteriores de ese mismo producto
+- Autocompletado con todos los productos del historial (datalist dinámico)
+- Comparador en vivo: mientras llenas cantidad y precio, muestra si estás cotizando más caro o más barato que la última referencia, con porcentaje de variación
+
+**Mockup — Nueva Cotización v2 (subir archivo)**
+- Archivo `mockup-nueva-cot.html`: prototipo visual del flujo de subida de PDF/Excel
+- Flujo diseñado: ① subir archivo → ② revisar datos extraídos (editables) → ③ comparación con historial + guardar
+- Pendiente de implementar en el dashboard real
+
 ### v1.0.0 — 2026-05-19
 Primera versión publicada. Incluye:
 - Comparativo de cotizaciones agrupado por producto
