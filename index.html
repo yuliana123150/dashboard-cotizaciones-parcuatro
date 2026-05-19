@@ -1068,8 +1068,8 @@ async function ncHandleFile(file) {
         <div style="margin-top:8px;font-size:11px;color:#a0aec0;">Copia el contenido del cuadro y compártelo para ajustar la extracción.</div>`;
       return;
     }
-    _ncDatos = rows;
-    ncMostrarResultado(file.name, rows);
+    _ncDatos = ncCombinarRows(rows);
+    ncMostrarResultado(file.name, _ncDatos);
   } catch(e) {
     alert('Error al procesar el archivo: ' + e.message);
     ncReiniciar();
@@ -1082,17 +1082,28 @@ async function ncParsePDF(file) {
   let texto = '';
   for (let i = 1; i <= pdf.numPages; i++) {
     const page    = await pdf.getPage(i);
+    const vp      = page.getViewport({ scale: 1 });
     const content = await page.getTextContent();
-    const items   = content.items;
+    const items   = content.items.filter(it => it.str.trim());
     if (!items.length) continue;
-    // Agrupar items por posición Y para preservar líneas
+    // Ordenar: Y descendente (arriba→abajo), luego X ascendente (izquierda→derecha)
     items.sort((a,b) => (b.transform[5]-a.transform[5]) || (a.transform[4]-b.transform[4]));
-    let curY = null, linea = '';
+    let curY = null, linea = '', prevRight = 0;
     for (const item of items) {
-      const y = Math.round(item.transform[5]);
-      if (curY === null) { curY = y; linea = item.str; }
-      else if (Math.abs(y - curY) <= 4) { linea += ' ' + item.str; }
-      else { texto += linea.trim() + '\n'; curY = y; linea = item.str; }
+      const y     = Math.round(item.transform[5]);
+      const x     = item.transform[4];
+      const w     = item.width || (item.str.length * 5);
+      if (curY === null) {
+        curY = y; linea = item.str; prevRight = x + w;
+      } else if (Math.abs(y - curY) <= 5) {
+        // Misma línea — usar doble espacio si hay salto de columna
+        const gap = x - prevRight;
+        linea += (gap > 12 ? '  ' : ' ') + item.str;
+        prevRight = x + w;
+      } else {
+        texto += linea.trim() + '\n';
+        curY = y; linea = item.str; prevRight = x + w;
+      }
     }
     if (linea) texto += linea.trim() + '\n';
     texto += '\n';
@@ -1183,11 +1194,11 @@ function ncExtraerDePDF(texto, nombreArchivo) {
   const SKIP       = /^\s*(item|descripci[oó]n|cantidad|precio|total|neto|iva|subtotal|observ|fono|fax|tel[eé]f)\s*$/i;
   const lineas     = texto.split('\n').map(l => l.trim()).filter(l => l.length > 3);
 
-  // Patrón A: "Descripción texto   cantidad   $ precio_unit   total"
-  // Ej: "RFID Label Coated Paper 54x34   546   $ 40   21,840"
-  const patA = /([A-Za-záéíóúÁÉÍÓÚñÑ][^\n$]{3,80?}?)\s{1,}(\d{2,6})\s+\$\s*([\d,\.]+)\s+([\d,\.]+)/;
+  // Patrón A: "Descripción  cantidad  $ precio_unit  total"  (columnas separadas por 2+ espacios)
+  // Ej: "RFID Label Coated Paper 54x34  546  $ 40  21,840"
+  const patA = /([A-Za-záéíóúÁÉÍÓÚñÑ][^\n]{4,80}?)\s{2,}(\d{2,6})\s+\$\s*([\d,\.]+)\s+([\d,\.]+)/;
 
-  // Patrón B (original): "cantidad   descripción   $ precio   total"
+  // Patrón B (fallback): "cantidad  descripción  $ precio  total"
   const patB = /(\d{3,6})\s+[^\n$]{3,80}\$\s*([\d,\.]+)\s+\$?([\d,\.]+)/;
 
   for (const linea of lineas) {
@@ -1253,6 +1264,27 @@ function ncExtraerDePDF(texto, nombreArchivo) {
   }
 
   return rows;
+}
+
+function ncCombinarRows(rows) {
+  if (rows.length <= 1) return rows;
+  const totalPrecio = rows.reduce((s, r) => s + r.precio_total, 0);
+  const totalCant   = rows.reduce((s, r) => s + r.cantidad, 0);
+  // Descripción combinada: "Producto A ×546 + Producto B ×546"
+  const desc = rows.map(r => `${r.producto} ×${r.cantidad}`).join(' + ').substring(0, 100);
+  return [{
+    proveedor:           rows[0].proveedor,
+    producto:            desc,
+    tipo:                rows[0].tipo,
+    fecha:               rows[0].fecha,
+    proyecto:            null,
+    cantidad:            totalCant,
+    precio_total:        totalPrecio,
+    precio_unitario:     parseFloat((totalPrecio / totalCant).toFixed(2)),
+    estado:              'pendiente',
+    cantidad_anterior:   null,
+    precio_unitario_anterior: null,
+  }];
 }
 
 function ncSetPaso(n) {
