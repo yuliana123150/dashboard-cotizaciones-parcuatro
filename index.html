@@ -140,6 +140,31 @@
     .progress-bar-wrap { background: #e2e8f0; border-radius: 99px; height: 8px; margin-top: 6px; overflow: hidden; }
     .progress-bar { height: 8px; border-radius: 99px; background: #e8a838; transition: width .4s; }
 
+    /* PANEL HISTÓRICO */
+    .panel-historico {
+      border-left: 4px solid #e8a838;
+      animation: slideDown .2s ease;
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .hist-table th {
+      background: #f7fafc; padding: 7px 10px; text-align: left;
+      font-size: 11px; color: #718096; font-weight: 600; text-transform: uppercase;
+    }
+    .hist-table td { padding: 8px 10px; border-bottom: 1px solid #f0f4f8; }
+    .hist-table tr:last-child td { border-bottom: none; }
+    .hist-table .ultima td { background: #fffdf0; }
+    .comparacion-live {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      background: #f7fafc; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+      font-size: 13px;
+    }
+    .comparacion-live .ref { color: #718096; }
+    .comparacion-live .actual { font-weight: 700; color: #2d3748; }
+    .comparacion-live .flecha { font-size: 18px; }
+
     /* RESPONSIVE */
     @media(max-width: 600px) {
       main { padding: 16px; }
@@ -227,7 +252,8 @@
         </div>
         <div class="form-group">
           <label>Producto *</label>
-          <input type="text" id="n-producto" placeholder="Ej: Caja 30x20 cm" />
+          <input type="text" id="n-producto" placeholder="Ej: Caja 30x20 cm" list="productos-list" oninput="mostrarHistorico()" />
+          <datalist id="productos-list"></datalist>
         </div>
         <div class="form-group">
           <label>Tipo de Producto</label>
@@ -247,11 +273,11 @@
         </div>
         <div class="form-group">
           <label>Cantidad Cotizada *</label>
-          <input type="number" id="n-cantidad" placeholder="Ej: 1000" min="0" />
+          <input type="number" id="n-cantidad" placeholder="Ej: 1000" min="0" oninput="calcularUnitario(); actualizarComparacion();" />
         </div>
         <div class="form-group">
           <label>Precio Total ($) *</label>
-          <input type="number" id="n-precio-total" placeholder="Ej: 150000" min="0" step="1" oninput="calcularUnitario()" />
+          <input type="number" id="n-precio-total" placeholder="Ej: 150000" min="0" step="1" oninput="calcularUnitario(); actualizarComparacion();" />
         </div>
         <div class="form-group">
           <label>Precio Unitario (calculado)</label>
@@ -283,6 +309,13 @@
         <button class="btn btn-gold" onclick="limpiarFormulario()">🔄 Limpiar</button>
       </div>
       <div id="msg-guardado" style="display:none; margin-top:12px; color:#276749; font-weight:600; font-size:14px;"></div>
+    </div>
+
+    <!-- Panel historial — aparece al escribir el producto -->
+    <div id="panel-historico" class="card panel-historico" style="display:none;">
+      <h2>📊 Historial de precios — <span id="hist-titulo" style="color:#e8a838;"></span></h2>
+      <div id="hist-comparacion-live"></div>
+      <div id="hist-contenido"></div>
     </div>
   </div>
 
@@ -473,6 +506,103 @@ function calcularUnitario() {
   }
 }
 
+// ─── HISTORIAL EN VIVO ────────────────────────────────────────────────────
+function mostrarHistorico() {
+  const producto = document.getElementById('n-producto').value.trim();
+  const panel    = document.getElementById('panel-historico');
+  const contenido = document.getElementById('hist-contenido');
+
+  if (producto.length < 2) { panel.style.display = 'none'; return; }
+
+  const exactas  = _cotizaciones.filter(c => c.producto.toLowerCase() === producto.toLowerCase())
+                                .sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+  const similares = _cotizaciones.filter(c =>
+    c.producto.toLowerCase() !== producto.toLowerCase() &&
+    c.producto.toLowerCase().includes(producto.toLowerCase())
+  ).sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+
+  if (!exactas.length && !similares.length) { panel.style.display = 'none'; return; }
+
+  panel.style.display = 'block';
+  document.getElementById('hist-titulo').textContent = producto;
+
+  const renderTabla = (items, titulo) => {
+    if (!items.length) return '';
+    return `
+      <div style="margin-bottom:20px;">
+        <div style="font-size:11px;font-weight:700;color:#718096;text-transform:uppercase;margin-bottom:8px;letter-spacing:.5px;">${titulo}</div>
+        <div class="table-wrap">
+          <table class="hist-table" style="width:100%;border-collapse:collapse;">
+            <thead><tr>
+              <th>Fecha</th><th>Proveedor</th><th>Cliente</th>
+              <th style="text-align:right;">Cantidad</th>
+              <th style="text-align:right;">Precio Unit.</th>
+              <th style="text-align:right;">Precio Total</th>
+              <th>Estado</th>
+            </tr></thead>
+            <tbody>
+              ${items.slice(0,8).map((c,i) => `
+                <tr class="${i===0 && titulo.includes('Exactas') ? 'ultima' : ''}">
+                  <td>${c.fecha}${i===0 && titulo.includes('Exactas') ? ' <span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;font-weight:700;">última</span>' : ''}</td>
+                  <td><strong>${c.proveedor}</strong></td>
+                  <td style="color:#718096;font-size:12px;">${c.proyecto||'—'}</td>
+                  <td style="text-align:right;">${fmtN(c.cantidad)}</td>
+                  <td style="text-align:right;font-weight:600;">${fmt(Math.round(c.precio_unitario))}</td>
+                  <td style="text-align:right;">${fmt(c.precio_total)}</td>
+                  <td>${estadoBadge(c.estado)}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  };
+
+  contenido.innerHTML = renderTabla(exactas, '✅ Cotizaciones Exactas') +
+                        renderTabla(similares, '🔍 Productos Similares');
+  actualizarComparacion();
+}
+
+function actualizarComparacion() {
+  const producto = document.getElementById('n-producto').value.trim();
+  const total    = parseFloat(document.getElementById('n-precio-total').value);
+  const cant     = parseFloat(document.getElementById('n-cantidad').value);
+  const box      = document.getElementById('hist-comparacion-live');
+
+  const exactas = _cotizaciones.filter(c => c.producto.toLowerCase() === producto.toLowerCase())
+                               .sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+  if (!exactas.length || !box) return;
+
+  const ref = exactas[0];
+  const puRef = Number(ref.precio_unitario);
+
+  if (total > 0 && cant > 0) {
+    const puActual = total / cant;
+    const diff = pct(puRef, puActual);
+    const diffNum = parseFloat(diff);
+    let indicador, color, bg;
+    if (Math.abs(diffNum) < 0.5) {
+      indicador = '⚪ Precio igual'; color = '#718096'; bg = '#f7fafc';
+    } else if (diffNum > 0) {
+      indicador = `🔴 +${diff}% más caro`; color = '#c53030'; bg = '#fff5f5';
+    } else {
+      indicador = `🟢 ${diff}% más barato`; color = '#276749'; bg = '#f0fff4';
+    }
+    box.innerHTML = `
+      <div class="comparacion-live" style="background:${bg};">
+        <span class="ref">Última ref. (${ref.fecha} · ${ref.proveedor}): <strong>${fmt(Math.round(puRef))}/u</strong></span>
+        <span class="flecha">→</span>
+        <span class="actual">Esta cotización: ${fmt(Math.round(puActual))}/u</span>
+        <span style="font-weight:700;color:${color};">${indicador}</span>
+      </div>`;
+  } else {
+    box.innerHTML = `
+      <div class="comparacion-live">
+        <span class="ref">Última referencia (${ref.fecha} · ${ref.proveedor}): <strong>${fmt(Math.round(puRef))}/u</strong> · ${fmtN(ref.cantidad)} unidades</span>
+        <span style="color:#a0aec0;font-size:12px;">— ingresa cantidad y precio para comparar</span>
+      </div>`;
+  }
+}
+
 // ─── GUARDAR COTIZACIÓN ────────────────────────────────────────────────────
 async function guardarCotizacion() {
   const proveedor = document.getElementById('n-proveedor').value.trim();
@@ -534,6 +664,12 @@ function limpiarFormulario() {
   });
   document.getElementById('n-tipo').value = '';
   document.getElementById('n-fecha').valueAsDate = new Date();
+  document.getElementById('panel-historico').style.display = 'none';
+}
+
+function actualizarProductosDatalist() {
+  const productos = [...new Set(_cotizaciones.map(c => c.producto))].sort();
+  document.getElementById('productos-list').innerHTML = productos.map(p => `<option value="${p}">`).join('');
 }
 
 // ─── STATS ─────────────────────────────────────────────────────────────────
@@ -566,6 +702,7 @@ async function renderTabla() {
   await fetchCotizaciones();
   renderStats();
   actualizarFiltroProductos();
+  actualizarProductosDatalist();
 
   let data = [..._cotizaciones];
   const fp  = document.getElementById('filtro-proveedor')?.value.toLowerCase() || '';
