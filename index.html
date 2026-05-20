@@ -1280,18 +1280,20 @@ function ncExtraerDePDF(texto, nombreArchivo) {
 function ncCombinarRows(rows) {
   if (rows.length <= 1) return rows;
   const totalPrecio = rows.reduce((s, r) => s + r.precio_total, 0);
-  const totalCant   = rows.reduce((s, r) => s + r.cantidad, 0);
-  // Descripción combinada: "Producto A ×546 + Producto B ×546"
-  const desc = rows.map(r => `${r.producto} ×${r.cantidad}`).join(' + ').substring(0, 100);
+  // Si todos los ítems tienen la misma cantidad, es el mismo lote (ej: 546 etiquetas + 546 impresión)
+  // → mantener la cantidad del lote, no sumar
+  const cantidades = [...new Set(rows.map(r => r.cantidad))];
+  const cant = cantidades.length === 1 ? cantidades[0] : rows.reduce((s, r) => s + r.cantidad, 0);
+  const desc = rows.map(r => r.producto).join(' + ').substring(0, 100);
   return [{
     proveedor:           rows[0].proveedor,
     producto:            desc,
     tipo:                rows[0].tipo,
     fecha:               rows[0].fecha,
     proyecto:            null,
-    cantidad:            totalCant,
+    cantidad:            cant,
     precio_total:        totalPrecio,
-    precio_unitario:     parseFloat((totalPrecio / totalCant).toFixed(2)),
+    precio_unitario:     parseFloat((totalPrecio / cant).toFixed(2)),
     estado:              'pendiente',
     cantidad_anterior:   null,
     precio_unitario_anterior: null,
