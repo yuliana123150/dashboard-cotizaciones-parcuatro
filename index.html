@@ -1042,16 +1042,22 @@ async function ncHandleFile(file) {
   ncSetPaso(2);
 
   try {
-    let rows;
+    let rows, textoDebug = '';
     if (ext === 'pdf') {
-      const textoDebug = await ncParsePDF(file);
+      textoDebug = await ncParsePDF(file);
       rows = ncExtraerDePDF(textoDebug, file.name);
     } else {
       rows = await ncParseXLSX(file);
     }
     if (!rows.length) {
-      alert('No se encontraron datos de cotización en el archivo. Verifica que sea una cotización con cantidades y precios.');
-      ncReiniciar();
+      document.getElementById('nc-procesando').style.display = 'none';
+      document.getElementById('nc-dropzone').style.display = 'block';
+      ncSetPaso(1);
+      const debugDiv = document.createElement('div');
+      debugDiv.style.cssText = 'margin-top:16px;padding:14px;background:#fff5f5;border:1px solid #fc8181;border-radius:10px;font-size:12px;';
+      debugDiv.innerHTML = `<strong>⚠ No se encontraron datos. Copia este texto y compártelo para diagnosticar:</strong>
+        <textarea style="width:100%;margin-top:8px;height:220px;font-size:11px;font-family:monospace;border:1px solid #e2e8f0;border-radius:6px;padding:8px;" readonly>${typeof textoDebug !== 'undefined' ? ncEsc(textoDebug) : '(archivo Excel — sin texto PDF)'}</textarea>`;
+      document.getElementById('nc-dropzone').after(debugDiv);
       return;
     }
     _ncDatos = ncCombinarRows(rows);
