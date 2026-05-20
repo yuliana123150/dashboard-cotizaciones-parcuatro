@@ -78,6 +78,36 @@ DASHBOARD COTIZACIONES/
 
 ## Historial de versiones
 
+### v1.2.0 — 2026-05-20
+Implementación del flujo real de subida de archivo en Nueva Cotización:
+
+**Carga de PDF/Excel con extracción automática**
+- El formulario manual fue reemplazado por una zona de drop (drag & drop o clic para seleccionar)
+- Extrae automáticamente: proveedor, producto, cantidad, precio unitario, precio total y fecha
+- Compatible con PDF y Excel (.xlsx / .xls)
+- Biblioteca PDF.js 3.11.174 para extracción en el navegador (sin servidor)
+- Biblioteca SheetJS 0.18.5 para Excel
+
+**Motor de extracción de PDF (4 patrones)**
+- Patrón A: `Descripción  cantidad  $ precio  total` (columnas separadas por 2+ espacios)
+- Patrón B: `cantidad  descripción  $ precio  total`
+- Patrón C: descripción en una línea, números en la siguiente
+- Patrón D: `cantidad  $ precio  total  Descripción` (formato GL Group — números antes que la descripción)
+- Agrupación de texto por posición Y con tolerancia de 8 px para reconstruir filas de tabla
+- Filtro de códigos de artículo internos (CE33100-U9, CE9998, etc.)
+
+**Combinación inteligente de ítems múltiples**
+- Si una cotización tiene varios ítems con la misma cantidad (mismo lote), los combina en un solo registro sumando precios y manteniendo la cantidad del lote
+- Si las cantidades difieren, suma cantidad y precio
+
+**Precio con IVA**
+- La tarjeta de resultado muestra Precio Total (neto) y Precio c/IVA (19%) calculado automáticamente
+- El campo IVA se recalcula en tiempo real si el usuario edita el precio total
+
+**Comparación con historial**
+- Tras extraer el archivo, compara automáticamente con el historial de Supabase
+- Muestra variación de precio vs. última cotización del mismo producto (semáforo + porcentaje)
+
 ### v1.1.0 — 2026-05-19
 Mejoras post-lanzamiento:
 
