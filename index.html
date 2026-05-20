@@ -1201,6 +1201,9 @@ function ncExtraerDePDF(texto, nombreArchivo) {
   // Patrón C: línea solo con "cantidad  $ precio_unit  total" (la descripción está arriba)
   const patC = /^(\d{2,6})\s+\$\s*([\d,\.]+)\s+([\d,\.]+)$/;
 
+  // Patrón D: "cantidad  $ precio_unit  total  Descripción" (GL Group: números antes que descripción)
+  const patD = /^(\d{2,6})\s+\$\s*([\d,\.]+)\s+([\d,\.]+)\s+([A-Za-záéíóúÁÉÍÓÚñÑ].{2,80})/;
+
   for (let i = 0; i < lineas.length; i++) {
     const linea = lineas[i];
     if (SKIP.test(linea)) continue;
@@ -1208,32 +1211,39 @@ function ncExtraerDePDF(texto, nombreArchivo) {
 
     let desc, cant, pu, tot;
 
-    const mA = linea.match(patA);
-    if (mA) {
-      desc = mA[1].trim();
-      cant = parseNum(mA[2]);
-      pu   = parseNum(mA[3]);
-      tot  = parseNum(mA[4]);
+    const mD = linea.match(patD);
+    if (mD) {
+      cant = parseNum(mD[1]);
+      pu   = parseNum(mD[2]);
+      tot  = parseNum(mD[3]);
+      desc = mD[4].trim();
     } else {
-      const mB = linea.match(patB);
-      if (mB) {
-        cant = parseNum(mB[1]);
-        pu   = parseNum(mB[2]);
-        tot  = parseNum(mB[3]);
-        const prev = i > 0 ? lineas[i-1] : '';
-        desc = /^[A-Za-záéíóúÁÉÍÓÚñÑ]/.test(prev) && !/\$|\d{3,}/.test(prev) && !ITEM_CODE.test(prev) ? prev : null;
+      const mA = linea.match(patA);
+      if (mA) {
+        desc = mA[1].trim();
+        cant = parseNum(mA[2]);
+        pu   = parseNum(mA[3]);
+        tot  = parseNum(mA[4]);
       } else {
-        // Patrón C: la descripción está en la línea anterior y los números en esta
-        const mC = linea.match(patC);
-        if (mC) {
-          cant = parseNum(mC[1]);
-          pu   = parseNum(mC[2]);
-          tot  = parseNum(mC[3]);
-          // Buscar descripción en las 2 líneas anteriores
-          for (let k = i - 1; k >= Math.max(0, i - 2); k--) {
-            const prev = lineas[k];
-            if (/^[A-Za-záéíóúÁÉÍÓÚñÑ]/.test(prev) && !/\$/.test(prev) && !ITEM_CODE.test(prev) && !SKIP.test(prev)) {
-              desc = prev; break;
+        const mB = linea.match(patB);
+        if (mB) {
+          cant = parseNum(mB[1]);
+          pu   = parseNum(mB[2]);
+          tot  = parseNum(mB[3]);
+          const prev = i > 0 ? lineas[i-1] : '';
+          desc = /^[A-Za-záéíóúÁÉÍÓÚñÑ]/.test(prev) && !/\$|\d{3,}/.test(prev) && !ITEM_CODE.test(prev) ? prev : null;
+        } else {
+          // Patrón C: la descripción está en la línea anterior y los números en esta
+          const mC = linea.match(patC);
+          if (mC) {
+            cant = parseNum(mC[1]);
+            pu   = parseNum(mC[2]);
+            tot  = parseNum(mC[3]);
+            for (let k = i - 1; k >= Math.max(0, i - 2); k--) {
+              const prev = lineas[k];
+              if (/^[A-Za-záéíóúÁÉÍÓÚñÑ]/.test(prev) && !/\$/.test(prev) && !ITEM_CODE.test(prev) && !SKIP.test(prev)) {
+                desc = prev; break;
+              }
             }
           }
         }
