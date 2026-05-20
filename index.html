@@ -1376,6 +1376,37 @@ function ncComparBadge(puNuevo, ref) {
   return   { bg:'#f0fff4', html:`${refText} &nbsp; <span style="color:#276749;font-weight:700;">🟢 ${v.toFixed(1)}% más barato</span>` };
 }
 
+function ncProductosSimilares(nombre) {
+  const palabras = nombre.toLowerCase().split(/\s+/).filter(p => p.length > 3);
+  if (palabras.length < 2) return [];
+  const vistos = new Set();
+  return _cotizaciones
+    .filter(c => {
+      const key = c.producto.toLowerCase();
+      if (key === nombre.toLowerCase()) return false;
+      if (vistos.has(key)) return false;
+      vistos.add(key);
+      const palabrasC = key.split(/\s+/);
+      const comunes = palabras.filter(p => palabrasC.some(pc => pc.includes(p) || p.includes(pc)));
+      return comunes.length >= 2;
+    })
+    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
+    .slice(0, 4);
+}
+
+function ncSeleccionarRef(idx) {
+  const box     = document.getElementById(`nc-comp-${idx}`);
+  if (!box) return;
+  const checked = document.querySelector(`input[name="nc-ref-${idx}"]:checked`);
+  const ref     = checked?.value ? ncHistRef(checked.value)[0] : null;
+  const tot     = parseFloat(document.getElementById(`nc-ptotal-${idx}`)?.value);
+  const cant    = parseFloat(document.getElementById(`nc-cant-${idx}`)?.value);
+  const pu      = (tot > 0 && cant > 0) ? tot / cant : null;
+  const { bg, html } = ncComparBadge(pu, ref);
+  box.style.background = bg;
+  box.innerHTML = html;
+}
+
 function ncRenderCard(p, idx) {
   const hist = ncHistRef(p.producto);
   const ref  = hist[0];
@@ -1456,6 +1487,24 @@ function ncRenderCard(p, idx) {
       </div>
     </div>
     <div id="nc-comp-${idx}" class="nc-comparacion-badge" style="background:${bg};">${html}</div>
+    ${(() => {
+      if (ref) return '';
+      const similares = ncProductosSimilares(p.producto);
+      if (!similares.length) return '';
+      return `<div style="margin-top:12px;padding:12px 14px;background:#fffbeb;border:1px solid #f6e05e;border-radius:10px;">
+        <div style="font-size:12px;font-weight:700;color:#744210;margin-bottom:10px;">⚠ Sin referencia exacta — ¿Es el mismo que alguno de estos?</div>
+        ${similares.map(s => `
+          <label style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;cursor:pointer;font-size:12px;margin-bottom:4px;background:#fff;border:1px solid #e2e8f0;">
+            <input type="radio" name="nc-ref-${idx}" value="${ncEsc(s.producto)}" onchange="ncSeleccionarRef(${idx})">
+            <span style="flex:1;">${ncEsc(s.producto)}</span>
+            <span style="color:#718096;white-space:nowrap;">${fmt(Math.round(s.precio_unitario))} &nbsp;·&nbsp; ${(s.fecha||'').substring(0,7)}</span>
+          </label>`).join('')}
+        <label style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:7px;cursor:pointer;font-size:12px;background:#f7fafc;border:1px solid #e2e8f0;">
+          <input type="radio" name="nc-ref-${idx}" value="" checked onchange="ncSeleccionarRef(${idx})">
+          <span style="color:#718096;">Ninguno de los anteriores</span>
+        </label>
+      </div>`;
+    })()}
     ${histTabla}
   </div>`;
 }
@@ -1529,7 +1578,10 @@ function ncLeerCard(idx) {
   const ptotal    = parseFloat(document.getElementById(`nc-ptotal-${idx}`)?.value);
   const proyecto  = document.getElementById(`nc-proy-${idx}`)?.value.trim() || null;
   if (!proveedor || !producto || isNaN(cantidad) || isNaN(ptotal) || !fecha) return null;
-  const ref = ncHistRef(producto)[0];
+  const autoRef    = ncHistRef(producto)[0];
+  const checked    = document.querySelector(`input[name="nc-ref-${idx}"]:checked`);
+  const manualRef  = checked?.value ? ncHistRef(checked.value)[0] : null;
+  const ref        = manualRef || autoRef;
   return { proveedor, producto, tipo, unidad, cantidad,
     precio_total: ptotal, precio_unitario: ptotal/cantidad, fecha, proyecto,
     estado:'pendiente',
