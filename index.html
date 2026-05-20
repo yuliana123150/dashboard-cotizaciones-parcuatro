@@ -1423,7 +1423,11 @@ function ncRenderCard(p, idx) {
         <input type="number" id="nc-ptotal-${idx}" value="${p.precio_total}" oninput="ncRecalcPU(${idx}); ncActualizarComp(${idx})"/>
       </div>
       <div class="nc-dato">
-        <span class="nc-lbl">Precio Unit.</span>
+        <span class="nc-lbl">Precio c/IVA</span>
+        <input id="nc-piva-${idx}" value="${fmt(Math.round(p.precio_total * 1.19))}" readonly style="background:#f7fafc;"/>
+      </div>
+      <div class="nc-dato">
+        <span class="nc-lbl">Precio Unit. (neto)</span>
         <input id="nc-punit-${idx}" value="${fmt(Math.round(p.precio_unitario))}" readonly style="color:#276749;font-weight:700;background:#f7fafc;"/>
       </div>
       <div class="nc-dato">
@@ -1476,8 +1480,10 @@ function ncRenderTablaPrevia(rows) {
 function ncRecalcPU(idx) {
   const tot  = parseFloat(document.getElementById(`nc-ptotal-${idx}`)?.value);
   const cant = parseFloat(document.getElementById(`nc-cant-${idx}`)?.value);
-  const el   = document.getElementById(`nc-punit-${idx}`);
-  if (el && tot>0 && cant>0) el.value = fmt(Math.round(tot/cant));
+  const elPU  = document.getElementById(`nc-punit-${idx}`);
+  const elIVA = document.getElementById(`nc-piva-${idx}`);
+  if (tot > 0 && cant > 0 && elPU)  elPU.value  = fmt(Math.round(tot / cant));
+  if (tot > 0 && elIVA) elIVA.value = fmt(Math.round(tot * 1.19));
 }
 
 function ncActualizarComp(idx) {
