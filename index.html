@@ -260,10 +260,9 @@
           style="padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px;">
           <option value="">Todos los clientes</option>
         </select>
-        <select id="filtro-producto" onchange="renderTabla()"
-          style="padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px;">
-          <option value="">Todos los productos</option>
-        </select>
+        <input type="text" id="filtro-producto" placeholder="Buscar producto..." oninput="renderTabla()"
+          style="padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; min-width:200px;"
+          list="productos-list">
       </div>
       <div class="table-wrap">
         <table>
@@ -720,13 +719,9 @@ function renderStats() {
   `;
 }
 
-// ─── FILTRO PRODUCTOS ──────────────────────────────────────────────────────
+// ─── FILTRO PRODUCTOS (datalist para autocompletado del buscador de texto) ──
 function actualizarFiltroProductos() {
-  const productos = [...new Set(_cotizaciones.map(c => c.producto))].sort();
-  const sel = document.getElementById('filtro-producto');
-  const actual = sel.value;
-  sel.innerHTML = '<option value="">Todos los productos</option>' +
-    productos.map(p => `<option value="${p}" ${p === actual ? 'selected' : ''}>${p}</option>`).join('');
+  // El datalist productos-list se actualiza en actualizarProductosDatalist()
 }
 
 // ─── TABLA COTIZACIONES ────────────────────────────────────────────────────
@@ -744,7 +739,7 @@ async function renderTabla() {
 
   if (fp)  data = data.filter(c => c.proveedor.toLowerCase().includes(fp));
   if (fe)  data = data.filter(c => c.estado === fe);
-  if (fpr) data = data.filter(c => c.producto === fpr);
+  if (fpr) data = data.filter(c => c.producto.toLowerCase().includes(fpr.toLowerCase()));
   if (fcl) data = data.filter(c => c.proyecto === fcl);
 
   data.sort((a, b) => {
