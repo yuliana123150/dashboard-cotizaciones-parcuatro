@@ -98,7 +98,10 @@
     .stat-card {
       background: #fff; border-radius: 12px; padding: 18px 20px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.08); text-align: center;
+      cursor: pointer; transition: box-shadow .15s, transform .15s;
     }
+    .stat-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.14); transform: translateY(-2px); }
+    .stat-card.activo { box-shadow: 0 0 0 2px #667eea; }
     .stat-card .num { font-size: 28px; font-weight: 700; color: #1a1a2e; }
     .stat-card .lbl { font-size: 12px; color: #718096; margin-top: 4px; }
 
@@ -703,6 +706,17 @@ function actualizarProductosDatalist() {
   document.getElementById('productos-list').innerHTML = productos.map(p => `<option value="${p}">`).join('');
 }
 
+let _filtroSubieron = false;
+
+function filtrarPorStat(tipo) {
+  _filtroSubieron = false;
+  const sel = document.getElementById('filtro-estado');
+  if (tipo === 'todos')     { sel.value = ''; }
+  else if (tipo === 'subieron') { sel.value = ''; _filtroSubieron = true; }
+  else                      { sel.value = tipo; }
+  renderTabla();
+}
+
 // ─── STATS ─────────────────────────────────────────────────────────────────
 function renderStats() {
   const data = _cotizaciones;
@@ -710,12 +724,18 @@ function renderStats() {
   const aprobadas  = data.filter(c => c.estado === 'aprobada').length;
   const rechazadas = data.filter(c => c.estado === 'rechazada').length;
   const subieron   = data.filter(c => c.precio_unitario_anterior && c.precio_unitario > c.precio_unitario_anterior).length;
+  const fe = document.getElementById('filtro-estado')?.value || '';
+  const activoTotal    = !fe && !_filtroSubieron ? 'activo' : '';
+  const activoPend     = fe === 'pendiente'       ? 'activo' : '';
+  const activoApro     = fe === 'aprobada'        ? 'activo' : '';
+  const activoRech     = fe === 'rechazada'       ? 'activo' : '';
+  const activoSubieron = _filtroSubieron          ? 'activo' : '';
   document.getElementById('stats-row').innerHTML = `
-    <div class="stat-card"><div class="num">${data.length}</div><div class="lbl">Total cotizaciones</div></div>
-    <div class="stat-card"><div class="num" style="color:#b7791f">${pendientes}</div><div class="lbl">Pendientes</div></div>
-    <div class="stat-card"><div class="num" style="color:#276749">${aprobadas}</div><div class="lbl">Aprobadas</div></div>
-    <div class="stat-card"><div class="num" style="color:#c53030">${rechazadas}</div><div class="lbl">Rechazadas</div></div>
-    <div class="stat-card"><div class="num" style="color:#c53030">${subieron}</div><div class="lbl">Precios que subieron</div></div>
+    <div class="stat-card ${activoTotal}"    onclick="filtrarPorStat('todos')"><div class="num">${data.length}</div><div class="lbl">Total cotizaciones</div></div>
+    <div class="stat-card ${activoPend}"     onclick="filtrarPorStat('pendiente')"><div class="num" style="color:#b7791f">${pendientes}</div><div class="lbl">Pendientes</div></div>
+    <div class="stat-card ${activoApro}"     onclick="filtrarPorStat('aprobada')"><div class="num" style="color:#276749">${aprobadas}</div><div class="lbl">Aprobadas</div></div>
+    <div class="stat-card ${activoRech}"     onclick="filtrarPorStat('rechazada')"><div class="num" style="color:#c53030">${rechazadas}</div><div class="lbl">Rechazadas</div></div>
+    <div class="stat-card ${activoSubieron}" onclick="filtrarPorStat('subieron')"><div class="num" style="color:#c53030">${subieron}</div><div class="lbl">Precios que subieron</div></div>
   `;
 }
 
@@ -741,6 +761,7 @@ async function renderTabla() {
   if (fe)  data = data.filter(c => c.estado === fe);
   if (fpr) data = data.filter(c => c.producto.toLowerCase().includes(fpr.toLowerCase()));
   if (fcl) data = data.filter(c => c.proyecto === fcl);
+  if (_filtroSubieron) data = data.filter(c => c.precio_unitario_anterior && c.precio_unitario > c.precio_unitario_anterior);
 
   data.sort((a, b) => {
     const prod = a.producto.localeCompare(b.producto, 'es');
