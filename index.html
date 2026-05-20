@@ -1042,30 +1042,16 @@ async function ncHandleFile(file) {
   ncSetPaso(2);
 
   try {
-    let rows, textoDebug = '';
+    let rows;
     if (ext === 'pdf') {
-      textoDebug = await ncParsePDF(file);
-      console.log('=== TEXTO EXTRAÍDO PDF ===\n' + textoDebug);
+      const textoDebug = await ncParsePDF(file);
       rows = ncExtraerDePDF(textoDebug, file.name);
     } else {
       rows = await ncParseXLSX(file);
     }
     if (!rows.length) {
-      // Mostrar texto crudo para debug
-      document.getElementById('nc-procesando').style.display = 'none';
-      document.getElementById('nc-dropzone').style.display = 'block';
-      ncSetPaso(1);
-      const debugDiv = document.getElementById('nc-debug') || (() => {
-        const d = document.createElement('div');
-        d.id = 'nc-debug';
-        d.style.cssText = 'margin-top:16px;padding:14px;background:#fff5f5;border:1px solid #feb2b2;border-radius:10px;font-size:12px;';
-        document.getElementById('nc-dropzone').after(d);
-        return d;
-      })();
-      debugDiv.innerHTML = `<strong style="color:#c53030">⚠ No se encontraron datos estructurados.</strong>
-        <div style="margin-top:10px;color:#718096;">Texto extraído del PDF (primeras 800 chars):</div>
-        <textarea style="width:100%;margin-top:6px;height:160px;font-size:11px;font-family:monospace;border:1px solid #e2e8f0;border-radius:6px;padding:8px;" readonly>${(textoDebug||'').substring(0,800)}</textarea>
-        <div style="margin-top:8px;font-size:11px;color:#a0aec0;">Copia el contenido del cuadro y compártelo para ajustar la extracción.</div>`;
+      alert('No se encontraron datos de cotización en el archivo. Verifica que sea una cotización con cantidades y precios.');
+      ncReiniciar();
       return;
     }
     _ncDatos = ncCombinarRows(rows);
@@ -1095,7 +1081,7 @@ async function ncParsePDF(file) {
       const w     = item.width || (item.str.length * 5);
       if (curY === null) {
         curY = y; linea = item.str; prevRight = x + w;
-      } else if (Math.abs(y - curY) <= 5) {
+      } else if (Math.abs(y - curY) <= 8) {
         // Misma línea — usar doble espacio si hay salto de columna
         const gap = x - prevRight;
         linea += (gap > 12 ? '  ' : ' ') + item.str;
@@ -1191,18 +1177,28 @@ function ncExtraerDePDF(texto, nombreArchivo) {
   const fecha      = ncExtraerFecha(texto, nombreArchivo);
   const rows       = [];
   const parseNum   = s => parseInt(String(s).replace(/[,\.]/g,''), 10);
-  const SKIP       = /^\s*(item|descripci[oó]n|cantidad|precio|total|neto|iva|subtotal|observ|fono|fax|tel[eé]f)\s*$/i;
-  const lineas     = texto.split('\n').map(l => l.trim()).filter(l => l.length > 3);
+
+  // Líneas de encabezado o totales — no son productos
+  const SKIP = /^\s*(item|descripci[oó]n|cantidad|precio|total|neto|iva|subtotal|observ|fono|fax|tel[eé]f|vencimiento|emisi[oó]n|ejecutivo|validez|presenta)\s*[:\$]?\s*$/i;
+
+  // Códigos de artículo internos (CE33100-U9, CE9998, etc.) — ignorar
+  const ITEM_CODE = /^[A-Z]{1,5}\d{3,}([-\/][A-Z0-9]+)?$/;
+
+  const lineas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 2);
 
   // Patrón A: "Descripción  cantidad  $ precio_unit  total"  (columnas separadas por 2+ espacios)
-  // Ej: "RFID Label Coated Paper 54x34  546  $ 40  21,840"
-  const patA = /([A-Za-záéíóúÁÉÍÓÚñÑ][^\n]{4,80}?)\s{2,}(\d{2,6})\s+\$\s*([\d,\.]+)\s+([\d,\.]+)/;
+  const patA = /([A-Za-záéíóúÁÉÍÓÚñÑ][^\n]{3,80}?)\s{2,}(\d{2,6})\s+\$\s*([\d,\.]+)\s+([\d,\.]+)/;
 
-  // Patrón B (fallback): "cantidad  descripción  $ precio  total"
-  const patB = /(\d{3,6})\s+[^\n$]{3,80}\$\s*([\d,\.]+)\s+\$?([\d,\.]+)/;
+  // Patrón B: "cantidad  descripción  $ precio  total"
+  const patB = /^(\d{3,6})\s+[^\n$]{3,80}\$\s*([\d,\.]+)\s+\$?([\d,\.]+)/;
 
-  for (const linea of lineas) {
+  // Patrón C: línea solo con "cantidad  $ precio_unit  total" (la descripción está arriba)
+  const patC = /^(\d{2,6})\s+\$\s*([\d,\.]+)\s+([\d,\.]+)$/;
+
+  for (let i = 0; i < lineas.length; i++) {
+    const linea = lineas[i];
     if (SKIP.test(linea)) continue;
+    if (ITEM_CODE.test(linea)) continue;
 
     let desc, cant, pu, tot;
 
@@ -1218,18 +1214,30 @@ function ncExtraerDePDF(texto, nombreArchivo) {
         cant = parseNum(mB[1]);
         pu   = parseNum(mB[2]);
         tot  = parseNum(mB[3]);
-        // Intentar extraer descripción de la línea anterior
-        const idx = lineas.indexOf(linea);
-        const prev = idx > 0 ? lineas[idx-1] : '';
-        desc = /^[A-Za-záéíóúÁÉÍÓÚñÑ]/.test(prev) && !/\$|\d{3,}/.test(prev) ? prev : null;
+        const prev = i > 0 ? lineas[i-1] : '';
+        desc = /^[A-Za-záéíóúÁÉÍÓÚñÑ]/.test(prev) && !/\$|\d{3,}/.test(prev) && !ITEM_CODE.test(prev) ? prev : null;
+      } else {
+        // Patrón C: la descripción está en la línea anterior y los números en esta
+        const mC = linea.match(patC);
+        if (mC) {
+          cant = parseNum(mC[1]);
+          pu   = parseNum(mC[2]);
+          tot  = parseNum(mC[3]);
+          // Buscar descripción en las 2 líneas anteriores
+          for (let k = i - 1; k >= Math.max(0, i - 2); k--) {
+            const prev = lineas[k];
+            if (/^[A-Za-záéíóúÁÉÍÓÚñÑ]/.test(prev) && !/\$/.test(prev) && !ITEM_CODE.test(prev) && !SKIP.test(prev)) {
+              desc = prev; break;
+            }
+          }
+        }
       }
     }
 
     if (!cant || !pu || cant < 5 || cant > 500000 || pu < 1 || pu > 10000000) continue;
     if (desc && SKIP.test(desc)) continue;
 
-    // Si no hay descripción, usar el nombre del archivo limpio
-    if (!desc || desc.length < 3) {
+    if (!desc || desc.length < 2) {
       desc = nombreArchivo.replace(/\.[^.]+$/,'')
         .replace(/\d{6,}/g,'').replace(/cotizaci[oó]n[_\s]*/gi,'')
         .replace(/presupuesto[_\s]*/gi,'').replace(/coti[_\s]*/gi,'')
@@ -1245,12 +1253,15 @@ function ncExtraerDePDF(texto, nombreArchivo) {
     });
   }
 
-  // Fallback: buscar total global + primera cantidad mencionada
+  // Fallback: buscar Neto o Total + cantidad de la tabla (no de direcciones)
   if (!rows.length) {
-    const tm  = texto.match(/total[^\d]*\$?\s*([\d,\.]+)/i);
-    const cm  = texto.match(/\b(\d{3,5})\b/);
-    const tot = tm  ? parseNum(tm[1])  : null;
-    const cant = cm ? parseInt(cm[1])  : null;
+    const tm   = texto.match(/(?:neto|subtotal)[^\d]*\$?\s*([\d,\.]+)/i)
+               || texto.match(/total[^\d\n]*\$?\s*([\d,\.]+)/i);
+    // Solo cantidades que parezcan unidades de producto (no teléfonos, RUT, direcciones)
+    const cm   = texto.match(/\bcantidad\b[^\d\n]*?(\d{2,5})\b/i)
+               || texto.match(/\b((?:50|100|200|250|300|500|1000|1500|2000|2500|3000|5000)\b)/);
+    const tot  = tm  ? parseNum(tm[1]) : null;
+    const cant = cm  ? parseInt(cm[1]) : null;
     const desc = nombreArchivo.replace(/\.[^.]+$/,'')
       .replace(/\d{6,}/g,'').replace(/cotizaci[oó]n[_\s]*/gi,'')
       .replace(/presupuesto[_\s]*/gi,'').replace(/coti[_\s]*/gi,'')
