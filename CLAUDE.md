@@ -78,6 +78,19 @@ DASHBOARD COTIZACIONES/
 
 ## Historial de versiones
 
+### v1.3.0 — 2026-05-25
+Desglose por ítem y guardado individual en Nueva Cotización:
+
+**Cada insumo del PDF como tarjeta independiente**
+- Se eliminó `ncCombinarRows` del flujo de subida — ya no se combinan ítems en un solo registro
+- Cada línea extraída del PDF aparece como su propia tarjeta editable (Producto 1, Producto 2, etc.)
+- Se eliminó el límite de 5 ítems que antes convertía la vista en tabla previa; ahora siempre son tarjetas
+
+**Guardado uno a uno**
+- Cada tarjeta tiene su botón "💾 Guardar este" independiente (`ncGuardarUno`)
+- Al guardar, la tarjeta se opaca y muestra "✅ Guardada correctamente"; no se puede editar más
+- El botón "💾 Guardar todos" salta los ítems ya guardados individualmente (no crea duplicados)
+
 ### v1.2.0 — 2026-05-20
 Implementación del flujo real de subida de archivo en Nueva Cotización:
 
