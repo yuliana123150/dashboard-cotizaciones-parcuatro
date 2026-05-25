@@ -1203,9 +1203,13 @@ function ncExtraerDePDF(texto, nombreArchivo) {
 
   // Líneas de encabezado o totales — no son productos
   const SKIP = /^\s*(item|descripci[oó]n|cantidad|precio|total|neto|iva|subtotal|observ|fono|fax|tel[eé]f|vencimiento|emisi[oó]n|ejecutivo|validez|presenta)\s*[:\$]?\s*$/i;
+  // Encabezados de tabla multi-columna (ej: "CANTIDAD  VALOR UNITARIO  VALOR TOTAL NETO")
+  const HEADER_ROW = /^\s*(cantidad|valor\s+unitario|valor\s+total|precio\s+unit|moneda|unidad\s+de)/i;
+  // Marcadores de ítem (ej: "ITEM: 16420") — evita cruzar hacia el ítem anterior en el lookback
+  const ITEM_LINE  = /^\s*item\s*[:\.#]\s*\d+/i;
 
-  // Códigos de artículo internos (CE33100-U9, CE9998, etc.) — ignorar
-  const ITEM_CODE = /^[A-Z]{1,5}\d{3,}([-\/][A-Z0-9]+)?$/;
+  // Códigos de artículo internos (CE33100-U9, CE9998, AISA4, P46213, etc.) — ignorar
+  const ITEM_CODE = /^[A-Z]{1,5}\d{3,}([-\/][A-Z0-9]+)?$|^[A-Z]{3,6}\d{1,4}$|^[A-Z]\d{4,}$/;
 
   const lineas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 2);
 
@@ -1219,14 +1223,15 @@ function ncExtraerDePDF(texto, nombreArchivo) {
   const patB = new RegExp(`^(${NUM})\\s+[^\\n$]{3,80}\\$\\s*([\\d,\\.]+)\\s+\\$?([\\d,\\.]+)`);
 
   // Patrón C: línea solo con "cantidad  $ precio_unit  total" (la descripción está arriba)
-  const patC = new RegExp(`^(${NUM})\\s+\\$\\s*([\\d,\\.]+)\\s+([\\d,\\.]+)$`);
+  // Acepta $ opcional antes del total: "1,500  $98  $147,000"
+  const patC = new RegExp(`^(${NUM})\\s+\\$\\s*([\\d,\\.]+)\\s+\\$?([\\d,\\.]+)$`);
 
   // Patrón D: "cantidad  $ precio_unit  total  Descripción" (GL Group: números antes que descripción)
   const patD = new RegExp(`^(${NUM})\\s+\\$\\s*([\\d,\\.]+)\\s+([\\d,\\.]+)\\s+([A-Za-záéíóúÁÉÍÓÚñÑ].{2,80})`);
 
   for (let i = 0; i < lineas.length; i++) {
     const linea = lineas[i];
-    if (SKIP.test(linea)) continue;
+    if (SKIP.test(linea) || HEADER_ROW.test(linea)) continue;
     if (ITEM_CODE.test(linea)) continue;
 
     let desc, cant, pu, tot;
@@ -1253,15 +1258,20 @@ function ncExtraerDePDF(texto, nombreArchivo) {
           const prev = i > 0 ? lineas[i-1] : '';
           desc = /^[A-Za-záéíóúÁÉÍÓÚñÑ]/.test(prev) && !/\$|\d{3,}/.test(prev) && !ITEM_CODE.test(prev) ? prev : null;
         } else {
-          // Patrón C: la descripción está en la línea anterior y los números en esta
+          // Patrón C: la descripción está en líneas anteriores y los números en esta
+          // Soporta formatos con encabezado intermedio y código de impresora (ej: AISA4)
           const mC = linea.match(patC);
           if (mC) {
             cant = parseNum(mC[1]);
             pu   = parseNum(mC[2]);
             tot  = parseNum(mC[3]);
-            for (let k = i - 1; k >= Math.max(0, i - 2); k--) {
+            for (let k = i - 1; k >= Math.max(0, i - 15); k--) {
               const prev = lineas[k];
-              if (/^[A-Za-záéíóúÁÉÍÓÚñÑ]/.test(prev) && !/\$/.test(prev) && !ITEM_CODE.test(prev) && !SKIP.test(prev)) {
+              // Si encontramos un marcador de ítem anterior, detenemos la búsqueda
+              if (ITEM_LINE.test(prev)) break;
+              if (SKIP.test(prev) || HEADER_ROW.test(prev) || ITEM_CODE.test(prev)) continue;
+              // Exigir que empiece con letra mayúscula (excluye "formato 72x44", "en bopp", etc.)
+              if (/^[A-ZÁÉÍÓÚÑ]/.test(prev) && !/\$/.test(prev)) {
                 desc = prev; break;
               }
             }
@@ -1271,7 +1281,7 @@ function ncExtraerDePDF(texto, nombreArchivo) {
     }
 
     if (!cant || !pu || cant < 5 || cant > 500000 || pu < 1 || pu > 10000000) continue;
-    if (desc && SKIP.test(desc)) continue;
+    if (desc && (SKIP.test(desc) || HEADER_ROW.test(desc) || ITEM_CODE.test(desc))) continue;
 
     if (!desc || desc.length < 2) {
       desc = nombreArchivo.replace(/\.[^.]+$/,'')
