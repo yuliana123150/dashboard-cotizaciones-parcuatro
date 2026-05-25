@@ -342,7 +342,7 @@
         <div id="nc-productos-container"></div>
 
         <div class="btn-row">
-          <button class="btn btn-primary" id="nc-btn-guardar" onclick="ncGuardarTodo()">💾 Guardar cotización</button>
+          <button class="btn btn-primary" id="nc-btn-guardar" onclick="ncGuardarTodo()">💾 Guardar todos</button>
           <button class="btn" style="background:#e2e8f0;color:#718096" onclick="ncReiniciar()">🔄 Subir otro archivo</button>
         </div>
         <div id="nc-msg-guardado" style="display:none;margin-top:12px;color:#276749;font-weight:600;font-size:14px;"></div>
@@ -1077,7 +1077,7 @@ async function ncHandleFile(file) {
       document.getElementById('nc-dropzone').after(debugDiv);
       return;
     }
-    _ncDatos = ncCombinarRows(rows);
+    _ncDatos = rows;
     ncMostrarResultado(file.name, _ncDatos);
   } catch(e) {
     alert('Error al procesar el archivo: ' + e.message);
@@ -1351,12 +1351,9 @@ function ncMostrarResultado(nombreArchivo, rows) {
   ncSetPaso(3);
   document.getElementById('nc-exito-titulo').textContent = `Datos extraídos de "${nombreArchivo}"`;
   document.getElementById('nc-exito-sub').textContent =
-    `${rows.length} producto${rows.length>1?'s':''} identificado${rows.length>1?'s':''} — revisa y corrige si es necesario`;
-
+    `${rows.length} insumo${rows.length>1?'s':''} identificado${rows.length>1?'s':''} — revisa cada uno y guárdalos individualmente o todos juntos`;
   const container = document.getElementById('nc-productos-container');
-  container.innerHTML = rows.length <= 5
-    ? rows.map((p,i) => ncRenderCard(p,i)).join('')
-    : ncRenderTablaPrevia(rows);
+  container.innerHTML = rows.map((p,i) => ncRenderCard(p,i)).join('');
 }
 
 function ncHistRef(producto) {
@@ -1506,6 +1503,13 @@ function ncRenderCard(p, idx) {
       </div>`;
     })()}
     ${histTabla}
+    <div id="nc-footer-${idx}" style="margin-top:18px;padding-top:14px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <button onclick="ncGuardarUno(${idx})" id="nc-btn-uno-${idx}"
+        style="padding:9px 20px;background:#276749;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+        💾 Guardar este
+      </button>
+      <span style="font-size:12px;color:#a0aec0;">o usa "Guardar todos" al final de la página</span>
+    </div>
   </div>`;
 }
 
@@ -1589,29 +1593,40 @@ function ncLeerCard(idx) {
     precio_unitario_anterior: ref ? ref.precio_unitario : null };
 }
 
+async function ncGuardarUno(idx) {
+  const btn = document.getElementById(`nc-btn-uno-${idx}`);
+  const r = ncLeerCard(idx);
+  if (!r) { alert('Completa los campos obligatorios: proveedor, producto, cantidad, precio y fecha.'); return; }
+  btn.disabled = true; btn.textContent = '⏳ Guardando…';
+  const { error } = await db.from('cotizaciones').insert([r]);
+  if (error) {
+    btn.disabled = false; btn.textContent = '💾 Guardar este';
+    alert('Error al guardar: ' + error.message);
+    return;
+  }
+  // Marcar card como guardada
+  const card   = document.getElementById(`nc-card-${idx}`);
+  const footer = document.getElementById(`nc-footer-${idx}`);
+  card.dataset.saved = 'true';
+  card.style.opacity = '0.65';
+  footer.innerHTML = '<span style="color:#276749;font-weight:700;font-size:13px;background:#f0fff4;padding:8px 16px;border-radius:8px;border:1px solid #9ae6b4;">✅ Guardada correctamente</span>';
+  await renderTabla();
+}
+
 async function ncGuardarTodo() {
   const btn = document.getElementById('nc-btn-guardar');
-  let rows = [];
-
-  if (_ncDatos.length <= 5) {
-    for (let i = 0; i < _ncDatos.length; i++) {
-      const r = ncLeerCard(i);
-      if (r) rows.push(r);
-    }
-    if (!rows.length) { alert('Completa los campos obligatorios.'); return; }
-  } else {
-    rows = _ncDatos.map(p => {
-      const ref = ncHistRef(p.producto)[0];
-      return { ...p, cantidad_anterior: ref?.cantidad||null, precio_unitario_anterior: ref?.precio_unitario||null };
-    });
+  const rows = [];
+  for (let i = 0; i < _ncDatos.length; i++) {
+    const card = document.getElementById(`nc-card-${i}`);
+    if (card?.dataset.saved === 'true') continue;
+    const r = ncLeerCard(i);
+    if (r) rows.push(r);
   }
-
+  if (!rows.length) { alert('No hay cotizaciones pendientes de guardar (todas ya fueron guardadas individualmente).'); return; }
   btn.disabled = true; btn.textContent = '⏳ Guardando…';
   const { error } = await db.from('cotizaciones').insert(rows);
-  btn.disabled = false; btn.textContent = '💾 Guardar cotización';
-
+  btn.disabled = false; btn.textContent = '💾 Guardar todos';
   if (error) { alert('Error al guardar: ' + error.message); return; }
-
   const msg = document.getElementById('nc-msg-guardado');
   msg.textContent = `✅ ${rows.length} cotización${rows.length>1?'es':''} guardada${rows.length>1?'s':''} correctamente. Ve al tab Cotizaciones para verlas.`;
   msg.style.display = 'block';
