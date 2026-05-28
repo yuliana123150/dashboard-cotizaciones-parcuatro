@@ -279,6 +279,7 @@
               <th>Precio Unit.</th>
               <th>Var. Precio</th>
               <th>Estado</th>
+              <th>Archivo</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -784,7 +785,7 @@ async function renderTabla() {
     if (c.producto !== productoActual) {
       productoActual = c.producto;
       header = `<tr>
-        <td colspan="9" style="background:#f0f4ff;padding:8px 12px;font-weight:700;font-size:12px;color:#3b4a8a;text-transform:uppercase;letter-spacing:.5px;border-top:2px solid #c7d2fe;">
+        <td colspan="10" style="background:#f0f4ff;padding:8px 12px;font-weight:700;font-size:12px;color:#3b4a8a;text-transform:uppercase;letter-spacing:.5px;border-top:2px solid #c7d2fe;">
           📦 ${c.producto} ${c.tipo ? '· <span style="font-weight:500;color:#5a6abf">' + c.tipo + '</span>' : ''} ${c.unidad ? '<span style="color:#718096;font-weight:400">(' + c.unidad + ')</span>' : ''}
         </td>
       </tr>`;
@@ -800,6 +801,9 @@ async function renderTabla() {
         <td style="text-align:right;font-weight:600;color:#276749;">${fmt(Number(c.precio_unitario).toFixed(0))}</td>
         <td>${vPrecio}</td>
         <td>${estadoBadge(c.estado)}</td>
+        <td style="text-align:center;">
+          ${c.archivo_url ? `<a href="${c.archivo_url}" target="_blank" title="Abrir archivo original" style="font-size:16px;text-decoration:none;">📎</a>` : '<span style="color:#cbd5e0;font-size:13px;">—</span>'}
+        </td>
         <td>
           <button class="btn btn-sm btn-primary" onclick="verDetalle(${c.id})" title="Ver detalle">👁 Ver</button>
           ${c.estado === 'pendiente' ? `
@@ -835,6 +839,7 @@ function verDetalle(id) {
       <tr><td style="color:#718096;padding:5px 0">Proyecto</td><td>${c.proyecto || '—'}</td></tr>
       <tr><td style="color:#718096;padding:5px 0">Estado</td><td>${estadoBadge(c.estado)}</td></tr>
       <tr><td style="color:#718096;padding:5px 0">Notas</td><td>${c.notas || '—'}</td></tr>
+      <tr><td style="color:#718096;padding:5px 0">Archivo</td><td>${c.archivo_url ? `<a href="${c.archivo_url}" target="_blank" style="color:#3b82f6;font-weight:600;text-decoration:none;">📎 Abrir archivo original</a>` : '<em style="color:#a0aec0">Sin archivo adjunto</em>'}</td></tr>
     </table>
     ${c.estado === 'pendiente' ? `
       <div class="btn-row">
@@ -1029,6 +1034,8 @@ async function eliminarEtiqueta(id) {
 // ─── NUEVA COTIZACIÓN — UPLOAD FLOW ───────────────────────────────────────
 
 let _ncDatos = [];
+let _ncArchivo    = null;   // File object del PDF/Excel cargado
+let _ncArchivoUrl = null;   // URL pública en Supabase Storage (se sube una sola vez)
 
 // PDF.js worker (lazy)
 function ncSetupPdfJs() {
@@ -1045,6 +1052,8 @@ function ncDrop(e)      { e.preventDefault(); ncDragLeave(); const f = e.dataTra
 function ncHandleFileInput(e) { const f = e.target.files[0]; if (f) ncHandleFile(f); }
 
 async function ncHandleFile(file) {
+  _ncArchivo    = file;   // guarda referencia para subirlo al guardar
+  _ncArchivoUrl = null;
   const ext = file.name.split('.').pop().toLowerCase();
   if (!['pdf','xlsx','xls'].includes(ext)) { alert('Usa un archivo PDF, XLSX o XLS.'); return; }
 
@@ -1599,11 +1608,31 @@ function ncLeerCard(idx) {
     precio_unitario_anterior: ref ? ref.precio_unitario : null };
 }
 
+// Sube el archivo a Supabase Storage (una sola vez por sesión de carga)
+// Retorna la URL pública o null si falla
+async function ncUploadArchivo() {
+  if (_ncArchivoUrl) return _ncArchivoUrl;   // ya fue subido
+  if (!_ncArchivo)   return null;
+  const ts   = Date.now();
+  const path = `${ts}_${_ncArchivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  const { data, error } = await db.storage
+    .from('archivos-cotizaciones')
+    .upload(path, _ncArchivo, { upsert: false });
+  if (error) { console.warn('No se pudo subir el archivo:', error.message); return null; }
+  const { data: urlData } = db.storage
+    .from('archivos-cotizaciones')
+    .getPublicUrl(data.path);
+  _ncArchivoUrl = urlData.publicUrl;
+  return _ncArchivoUrl;
+}
+
 async function ncGuardarUno(idx) {
   const btn = document.getElementById(`nc-btn-uno-${idx}`);
   const r = ncLeerCard(idx);
   if (!r) { alert('Completa los campos obligatorios: proveedor, producto, cantidad, precio y fecha.'); return; }
   btn.disabled = true; btn.textContent = '⏳ Guardando…';
+  const archivoUrl = await ncUploadArchivo();
+  if (archivoUrl) r.archivo_url = archivoUrl;
   const { error } = await db.from('cotizaciones').insert([r]);
   if (error) {
     btn.disabled = false; btn.textContent = '💾 Guardar este';
@@ -1630,6 +1659,8 @@ async function ncGuardarTodo() {
   }
   if (!rows.length) { alert('No hay cotizaciones pendientes de guardar (todas ya fueron guardadas individualmente).'); return; }
   btn.disabled = true; btn.textContent = '⏳ Guardando…';
+  const archivoUrl = await ncUploadArchivo();
+  if (archivoUrl) rows.forEach(r => r.archivo_url = archivoUrl);
   const { error } = await db.from('cotizaciones').insert(rows);
   btn.disabled = false; btn.textContent = '💾 Guardar todos';
   if (error) { alert('Error al guardar: ' + error.message); return; }
@@ -1641,7 +1672,9 @@ async function ncGuardarTodo() {
 }
 
 function ncReiniciar() {
-  _ncDatos = [];
+  _ncDatos      = [];
+  _ncArchivo    = null;
+  _ncArchivoUrl = null;
   document.getElementById('nc-resultado').style.display  = 'none';
   document.getElementById('nc-procesando').style.display = 'none';
   document.getElementById('nc-dropzone').style.display   = 'block';
