@@ -1428,12 +1428,12 @@ function ncRenderCard(p, idx) {
         <input type="number" id="nc-ptotal-${idx}" value="${p.precio_total}" oninput="ncRecalcPU(${idx}); ncActualizarComp(${idx})"/>
       </div>
       <div class="nc-dato">
-        <span class="nc-lbl">Precio c/IVA</span>
-        <input id="nc-piva-${idx}" value="${fmt(Math.round(p.precio_total * 1.19))}" readonly style="background:#f7fafc;"/>
+        <span class="nc-lbl">Precio Unit. (neto)</span>
+        <input type="number" id="nc-punit-${idx}" value="${Math.round(p.precio_unitario)}" style="color:#276749;font-weight:700;" oninput="ncRecalcTotal(${idx}); ncActualizarComp(${idx})"/>
       </div>
       <div class="nc-dato">
-        <span class="nc-lbl">Precio Unit. (neto)</span>
-        <input id="nc-punit-${idx}" value="${fmt(Math.round(p.precio_unitario))}" readonly style="color:#276749;font-weight:700;background:#f7fafc;"/>
+        <span class="nc-lbl">Precio c/IVA</span>
+        <input id="nc-piva-${idx}" value="${fmt(Math.round(p.precio_total * 1.19))}" readonly style="background:#f7fafc;"/>
       </div>
       <div class="nc-dato">
         <span class="nc-lbl">Cliente</span>
@@ -1507,13 +1507,27 @@ function ncRenderTablaPrevia(rows) {
   </div>`;
 }
 
+// Editar total → recalcula precio unitario e IVA
 function ncRecalcPU(idx) {
   const tot  = parseFloat(document.getElementById(`nc-ptotal-${idx}`)?.value);
   const cant = parseFloat(document.getElementById(`nc-cant-${idx}`)?.value);
   const elPU  = document.getElementById(`nc-punit-${idx}`);
   const elIVA = document.getElementById(`nc-piva-${idx}`);
-  if (tot > 0 && cant > 0 && elPU)  elPU.value  = fmt(Math.round(tot / cant));
+  if (tot > 0 && cant > 0 && elPU)  elPU.value  = Math.round(tot / cant);
   if (tot > 0 && elIVA) elIVA.value = fmt(Math.round(tot * 1.19));
+}
+
+// Editar precio unitario → recalcula total e IVA
+function ncRecalcTotal(idx) {
+  const pu   = parseFloat(document.getElementById(`nc-punit-${idx}`)?.value);
+  const cant = parseFloat(document.getElementById(`nc-cant-${idx}`)?.value);
+  const elTot = document.getElementById(`nc-ptotal-${idx}`);
+  const elIVA = document.getElementById(`nc-piva-${idx}`);
+  if (pu > 0 && cant > 0 && elTot) {
+    const total = Math.round(pu * cant);
+    elTot.value = total;
+    if (elIVA) elIVA.value = fmt(Math.round(total * 1.19));
+  }
 }
 
 function ncActualizarComp(idx) {
@@ -1537,14 +1551,16 @@ function ncLeerCard(idx) {
   const unidad    = document.getElementById(`nc-unidad-${idx}`)?.value.trim() || null;
   const cantidad  = parseFloat(document.getElementById(`nc-cant-${idx}`)?.value);
   const ptotal    = parseFloat(document.getElementById(`nc-ptotal-${idx}`)?.value);
+  const punit     = parseFloat(document.getElementById(`nc-punit-${idx}`)?.value);
   const proyecto  = document.getElementById(`nc-proy-${idx}`)?.value.trim() || null;
   if (!proveedor || !producto || isNaN(cantidad) || isNaN(ptotal) || !fecha) return null;
+  const precioUnitario = !isNaN(punit) && punit > 0 ? punit : ptotal / cantidad;
   const autoRef    = ncHistRef(producto)[0];
   const checked    = document.querySelector(`input[name="nc-ref-${idx}"]:checked`);
   const manualRef  = checked?.value ? ncHistRef(checked.value)[0] : null;
   const ref        = manualRef || autoRef;
   return { proveedor, producto, tipo, unidad, cantidad,
-    precio_total: ptotal, precio_unitario: ptotal/cantidad, fecha, proyecto,
+    precio_total: ptotal, precio_unitario: precioUnitario, fecha, proyecto,
     estado:'pendiente',
     cantidad_anterior: ref ? ref.cantidad : null,
     precio_unitario_anterior: ref ? ref.precio_unitario : null };
