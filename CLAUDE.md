@@ -78,6 +78,23 @@ DASHBOARD COTIZACIONES/
 
 ## Historial de versiones
 
+### v1.4.0 — 2026-05-28
+Adjunto de archivo PDF/Excel en cada cotización:
+
+**Supabase Storage**
+- Bucket público `archivos-cotizaciones` creado en Supabase Storage
+- Columna `archivo_url TEXT` añadida a la tabla `cotizaciones`
+
+**Upload automático al guardar**
+- Al guardar (uno por uno o todos juntos), el archivo se sube a Supabase Storage una sola vez
+- La URL pública queda guardada en `archivo_url` de cada cotización de esa carga
+- Si el upload falla, el guardado sigue funcionando (sin URL)
+
+**Link en el historial**
+- Nueva columna 📎 en la tabla de cotizaciones: clic abre el archivo original en nueva pestaña
+- Cotizaciones sin archivo muestran `—`
+- El modal de detalle también incluye el link "📎 Abrir archivo original"
+
 ### v1.3.0 — 2026-05-25
 Desglose por ítem y guardado individual en Nueva Cotización:
 
