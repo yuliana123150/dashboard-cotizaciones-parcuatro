@@ -352,87 +352,52 @@
   <!-- ===== TAB: INSUMOS ===== -->
   <div id="tab-etiquetas" class="tab-content">
     <div class="card">
-      <h2>Registrar Uso de Insumos por Proyecto</h2>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>Proyecto / Cliente *</label>
-          <input type="text" id="e-proyecto" placeholder="Selecciona o escribe un cliente..." list="clientes-list" />
-        </div>
-        <div class="form-group">
-          <label>Insumo *</label>
-          <input type="text" id="e-tipo" placeholder="Ej: Caja 30x20, Hang Tag, Bolsa kraft..." list="tipos-etiqueta-list" />
-          <datalist id="tipos-etiqueta-list"></datalist>
-        </div>
-        <div class="form-group">
-          <label>Categoría</label>
-          <select id="e-categoria">
-            <option value="">Seleccionar...</option>
-            <option>Etiqueta</option>
-            <option>Embalaje</option>
-            <option>Envase</option>
-            <option>Insumo general</option>
-            <option>Materia Prima</option>
-            <option>Otro</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Unidad</label>
-          <input type="text" id="e-unidad" placeholder="Ej: unidades, kg, litros" />
-        </div>
-        <div class="form-group">
-          <label>Cantidad Usada *</label>
-          <input type="number" id="e-cantidad" placeholder="Ej: 500" min="1" />
-        </div>
-        <div class="form-group">
-          <label>Fecha</label>
-          <input type="date" id="e-fecha" />
-        </div>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-primary" onclick="guardarEtiqueta()">💾 Registrar</button>
-      </div>
-      <div id="msg-etiqueta" style="display:none; margin-top:12px; color:#276749; font-weight:600; font-size:14px;"></div>
-    </div>
+      <h2>📦 Insumos Pedidos en el Año</h2>
+      <p style="font-size:13px;color:#718096;margin-bottom:18px;">
+        Resumen de cotizaciones <strong>aprobadas</strong> agrupadas por producto. Muestra el total pedido, gasto acumulado y último precio unitario.
+      </p>
 
-    <div class="card">
-      <h2>Estimado Anual por Insumo</h2>
-      <div style="display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
-        <p style="font-size:12px; color:#718096; flex:1;">
-          Basado en el historial registrado. El estimado anual se calcula en función del consumo promedio mensual.
-        </p>
-        <select id="filtro-categoria-insumo" onchange="renderEtiquetas()"
-          style="padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px;">
-          <option value="">Todas las categorías</option>
+      <!-- Filtros -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:20px;">
+        <select id="ei-anio" onchange="renderEstimador()"
+          style="padding:8px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#fff;">
+        </select>
+        <select id="ei-tipo" onchange="renderEstimador()"
+          style="padding:8px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#fff;">
+          <option value="">Todos los tipos</option>
           <option>Etiqueta</option>
           <option>Embalaje</option>
           <option>Envase</option>
-          <option>Insumo general</option>
+          <option>Insumo</option>
           <option>Materia Prima</option>
           <option>Otro</option>
         </select>
+        <input type="text" id="ei-buscar" oninput="renderEstimador()" placeholder="🔍 Buscar producto..."
+          style="padding:8px 14px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;flex:1;min-width:160px;" />
       </div>
-      <div id="etiquetas-resumen"></div>
-    </div>
 
-    <div class="card">
-      <h2>Historial de Uso</h2>
+      <!-- Totales resumen -->
+      <div id="ei-totales" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px;"></div>
+
+      <!-- Tabla -->
       <div class="table-wrap">
-        <table>
+        <table id="ei-tabla">
           <thead>
             <tr>
-              <th>Fecha</th>
-              <th>Proyecto / Cliente</th>
-              <th>Insumo</th>
-              <th>Categoría</th>
-              <th>Cantidad</th>
-              <th>Unidad</th>
-              <th></th>
+              <th>Producto</th>
+              <th>Tipo</th>
+              <th>Proveedor(es)</th>
+              <th style="text-align:right;">N° pedidos</th>
+              <th style="text-align:right;">Cantidad total</th>
+              <th style="text-align:right;">Gasto total</th>
+              <th style="text-align:right;">Último precio unit.</th>
+              <th style="text-align:center;">Última fecha</th>
             </tr>
           </thead>
-          <tbody id="etiquetas-historial"></tbody>
+          <tbody id="ei-tbody"></tbody>
         </table>
       </div>
-      <div class="empty" id="empty-etiquetas" style="display:none;">No hay registros de insumos aún.</div>
+      <div class="empty" id="ei-empty" style="display:none;">No hay cotizaciones aprobadas para el período seleccionado.</div>
     </div>
   </div>
 
@@ -497,7 +462,7 @@ function showTab(id) {
   document.getElementById('tab-' + id).classList.add('active');
   event.currentTarget.classList.add('active');
   if (id === 'cotizaciones') renderTabla();
-  if (id === 'etiquetas') renderEtiquetas();
+  if (id === 'etiquetas') { eiPoblarAnios(); renderEstimador(); }
 }
 
 // ─── UTILIDADES ────────────────────────────────────────────────────────────
@@ -921,114 +886,91 @@ async function eliminar(id) {
 function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
 function closeModalOverlay(e) { if (e.target === document.getElementById('modal-overlay')) closeModal(); }
 
-// ─── INSUMOS ───────────────────────────────────────────────────────────────
-async function guardarEtiqueta() {
-  const proyecto  = document.getElementById('e-proyecto').value.trim();
-  const tipo      = document.getElementById('e-tipo').value.trim();
-  const categoria = document.getElementById('e-categoria').value || null;
-  const unidad    = document.getElementById('e-unidad').value.trim() || null;
-  const cantidad  = parseInt(document.getElementById('e-cantidad').value);
-  const fecha     = document.getElementById('e-fecha').value;
+// ─── ESTIMADOR DE INSUMOS ─────────────────────────────────────────────────
+function renderEstimador() {
+  const anio   = document.getElementById('ei-anio')?.value || new Date().getFullYear().toString();
+  const tipo   = document.getElementById('ei-tipo')?.value || '';
+  const buscar = (document.getElementById('ei-buscar')?.value || '').toLowerCase();
 
-  if (!proyecto || !tipo || isNaN(cantidad) || cantidad < 1 || !fecha) {
-    alert('Completa los campos obligatorios: Proyecto, Insumo, Cantidad y Fecha.');
-    return;
-  }
+  // Filtrar cotizaciones aprobadas del año seleccionado
+  let data = _cotizaciones.filter(c =>
+    c.estado === 'aprobada' &&
+    c.fecha && c.fecha.startsWith(anio)
+  );
+  if (tipo)   data = data.filter(c => c.tipo === tipo);
+  if (buscar) data = data.filter(c => c.producto.toLowerCase().includes(buscar));
 
-  const { error } = await db.from('insumos').insert({ proyecto, tipo, categoria, unidad, cantidad, fecha });
-  if (error) { alert('Error al guardar: ' + error.message); return; }
-
-  const msg = document.getElementById('msg-etiqueta');
-  msg.textContent = `✅ Registrado: ${cantidad} ${unidad || 'unidades'} de "${tipo}" para ${proyecto}.`;
-  msg.style.display = 'block';
-  setTimeout(() => { msg.style.display = 'none'; }, 4000);
-
-  document.getElementById('e-proyecto').value = '';
-  document.getElementById('e-tipo').value = '';
-  document.getElementById('e-categoria').value = '';
-  document.getElementById('e-unidad').value = '';
-  document.getElementById('e-cantidad').value = '';
-
-  await renderEtiquetas();
-}
-
-async function renderEtiquetas() {
-  await fetchInsumos();
-  const data = _insumos;
-  const filtroCategoria = document.getElementById('filtro-categoria-insumo')?.value || '';
-
-  const tipos = [...new Set(data.map(e => e.tipo))].sort();
-  document.getElementById('tipos-etiqueta-list').innerHTML = tipos.map(t => `<option value="${t}">`).join('');
-
-  const tbody = document.getElementById('etiquetas-historial');
-  const empty = document.getElementById('empty-etiquetas');
+  const tbody = document.getElementById('ei-tbody');
+  const empty = document.getElementById('ei-empty');
+  const totalesDiv = document.getElementById('ei-totales');
 
   if (data.length === 0) {
     tbody.innerHTML = '';
     empty.style.display = 'block';
-  } else {
-    empty.style.display = 'none';
-    tbody.innerHTML = data.map(e => `
-      <tr>
-        <td>${e.fecha}</td>
-        <td>${e.proyecto}</td>
-        <td>${e.tipo}</td>
-        <td>${e.categoria ? `<span class="badge badge-same">${e.categoria}</span>` : '—'}</td>
-        <td>${fmtN(e.cantidad)}</td>
-        <td style="color:#718096">${e.unidad || '—'}</td>
-        <td><button class="btn btn-sm" style="background:#e2e8f0;color:#718096" onclick="eliminarEtiqueta(${e.id})">🗑</button></td>
-      </tr>`).join('');
-  }
-
-  const dataFiltrada = filtroCategoria ? data.filter(e => e.categoria === filtroCategoria) : data;
-  const resumen = {};
-  dataFiltrada.forEach(e => {
-    if (!resumen[e.tipo]) resumen[e.tipo] = { total: 0, fechas: [], unidad: e.unidad || 'u.', categoria: e.categoria || '' };
-    resumen[e.tipo].total += e.cantidad;
-    resumen[e.tipo].fechas.push(new Date(e.fecha));
-    if (e.unidad) resumen[e.tipo].unidad = e.unidad;
-  });
-
-  const contenedor = document.getElementById('etiquetas-resumen');
-  if (Object.keys(resumen).length === 0) {
-    contenedor.innerHTML = '<div class="empty">Registra usos de insumos para ver el estimado anual.</div>';
+    totalesDiv.innerHTML = '';
     return;
   }
+  empty.style.display = 'none';
 
-  const maxTotal = Math.max(...Object.values(resumen).map(r => r.total));
-  contenedor.innerHTML = Object.entries(resumen)
-    .sort((a, b) => b[1].total - a[1].total)
-    .map(([tipo, r]) => {
-      let estimadoAnual = r.total;
-      if (r.fechas.length > 1) {
-        const minF = new Date(Math.min(...r.fechas));
-        const maxF = new Date(Math.max(...r.fechas));
-        const meses = Math.max(1, (maxF - minF) / (1000 * 60 * 60 * 24 * 30.44));
-        estimadoAnual = Math.round((r.total / meses) * 12);
-      }
-      const pctBar = Math.round((r.total / maxTotal) * 100);
-      return `
-        <div style="margin-bottom:18px;">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;flex-wrap:wrap;gap:6px;">
-            <div>
-              <strong style="font-size:14px;">${tipo}</strong>
-              ${r.categoria ? `<span class="badge badge-same" style="margin-left:8px;font-size:10px;">${r.categoria}</span>` : ''}
-            </div>
-            <span style="font-size:12px;color:#718096;">
-              Total histórico: <strong>${fmtN(r.total)}</strong> ${r.unidad} &nbsp;|&nbsp;
-              Estimado anual: <strong style="color:#e8a838;">${fmtN(estimadoAnual)}</strong> ${r.unidad}
-            </span>
-          </div>
-          <div class="progress-bar-wrap"><div class="progress-bar" style="width:${pctBar}%"></div></div>
-        </div>`;
-    }).join('');
+  // Agrupar por producto
+  const grupos = {};
+  data.forEach(c => {
+    const k = c.producto;
+    if (!grupos[k]) grupos[k] = { tipo: c.tipo || '—', proveedores: new Set(), pedidos: 0, cantidad: 0, gasto: 0, ultimaFecha: '', ultimoPrecioUnit: 0, unidad: c.unidad || '' };
+    grupos[k].proveedores.add(c.proveedor);
+    grupos[k].pedidos++;
+    grupos[k].cantidad += Number(c.cantidad) || 0;
+    grupos[k].gasto    += Number(c.precio_total) || 0;
+    if (!grupos[k].ultimaFecha || c.fecha > grupos[k].ultimaFecha) {
+      grupos[k].ultimaFecha      = c.fecha;
+      grupos[k].ultimoPrecioUnit = Number(c.precio_unitario) || 0;
+    }
+  });
+
+  // Totales resumen
+  const totalPedidos  = Object.values(grupos).reduce((s,g) => s + g.pedidos, 0);
+  const totalGasto    = Object.values(grupos).reduce((s,g) => s + g.gasto, 0);
+  const totalProductos = Object.keys(grupos).length;
+  totalesDiv.innerHTML = `
+    <div style="background:#f0f4ff;border-radius:10px;padding:12px 18px;min-width:120px;text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#3b4a8a;">${totalProductos}</div>
+      <div style="font-size:11px;color:#718096;margin-top:2px;">Productos distintos</div>
+    </div>
+    <div style="background:#f0fff4;border-radius:10px;padding:12px 18px;min-width:120px;text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#276749;">${totalPedidos}</div>
+      <div style="font-size:11px;color:#718096;margin-top:2px;">Órdenes aprobadas</div>
+    </div>
+    <div style="background:#fffbeb;border-radius:10px;padding:12px 18px;min-width:140px;text-align:center;">
+      <div style="font-size:22px;font-weight:700;color:#b7791f;">${fmt(totalGasto)}</div>
+      <div style="font-size:11px;color:#718096;margin-top:2px;">Gasto total acumulado</div>
+    </div>`;
+
+  // Filas de tabla ordenadas por gasto desc
+  tbody.innerHTML = Object.entries(grupos)
+    .sort((a,b) => b[1].gasto - a[1].gasto)
+    .map(([producto, g]) => `
+      <tr>
+        <td><strong style="font-size:13px;">${producto}</strong></td>
+        <td>${g.tipo !== '—' ? `<span class="badge badge-same">${g.tipo}</span>` : '—'}</td>
+        <td style="font-size:12px;color:#718096;">${[...g.proveedores].join(', ')}</td>
+        <td style="text-align:right;">${g.pedidos}</td>
+        <td style="text-align:right;">${fmtN(g.cantidad)}${g.unidad ? ' <span style="color:#a0aec0;font-size:11px;">'+g.unidad+'</span>' : ''}</td>
+        <td style="text-align:right;font-weight:600;">${fmt(g.gasto)}</td>
+        <td style="text-align:right;color:#276749;font-weight:600;">${fmt(Math.round(g.ultimoPrecioUnit))}</td>
+        <td style="text-align:center;color:#718096;font-size:12px;">${g.ultimaFecha}</td>
+      </tr>`).join('');
 }
 
-async function eliminarEtiqueta(id) {
-  if (!confirm('¿Eliminar este registro?')) return;
-  const { error } = await db.from('insumos').delete().eq('id', id);
-  if (error) { alert('Error: ' + error.message); return; }
-  await renderEtiquetas();
+function eiPoblarAnios() {
+  const sel = document.getElementById('ei-anio');
+  if (!sel) return;
+  const anios = [...new Set(_cotizaciones
+    .filter(c => c.estado === 'aprobada' && c.fecha)
+    .map(c => c.fecha.substring(0,4))
+  )].sort((a,b) => b-a);
+  const actual = new Date().getFullYear().toString();
+  if (!anios.includes(actual)) anios.unshift(actual);
+  sel.innerHTML = anios.map(a => `<option value="${a}"${a===actual?' selected':''}>${a}</option>`).join('');
 }
 
 // ─── NUEVA COTIZACIÓN — UPLOAD FLOW ───────────────────────────────────────
@@ -1689,8 +1631,6 @@ function ncReiniciar() {
 
 // ─── INIT ──────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-  document.getElementById('e-fecha').valueAsDate = new Date();
-
   const dl = document.getElementById('clientes-list');
   dl.innerHTML = CLIENTES.map(c => `<option value="${c}">`).join('');
 
