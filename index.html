@@ -1573,12 +1573,20 @@ async function ncUploadArchivo() {
   if (!_ncArchivo)   return null;
   const ts   = Date.now();
   const path = `${ts}_${_ncArchivo.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  // Determinar contentType explícitamente para que funcione PDF y Excel
+  const ext = _ncArchivo.name.split('.').pop().toLowerCase();
+  const mimeMap = {
+    pdf:  'application/pdf',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    xls:  'application/vnd.ms-excel'
+  };
+  const contentType = mimeMap[ext] || _ncArchivo.type || 'application/octet-stream';
   const { data, error } = await db.storage
     .from('archivos-cotizaciones')
-    .upload(path, _ncArchivo, { upsert: false });
+    .upload(path, _ncArchivo, { upsert: false, contentType });
   if (error) {
     console.warn('No se pudo subir el archivo:', error.message);
-    alert('⚠️ No se pudo adjuntar el archivo PDF/Excel: ' + error.message + '\n\nLos datos de la cotización se guardarán igual, pero sin el link al archivo.');
+    alert('⚠️ No se pudo adjuntar el archivo: ' + error.message + '\n\nLos datos de la cotización se guardarán igual, pero sin el link al archivo.');
     return null;
   }
   const { data: urlData } = db.storage
