@@ -1618,7 +1618,11 @@ async function ncUploadArchivo() {
   const { data, error } = await db.storage
     .from('archivos-cotizaciones')
     .upload(path, _ncArchivo, { upsert: false });
-  if (error) { console.warn('No se pudo subir el archivo:', error.message); return null; }
+  if (error) {
+    console.warn('No se pudo subir el archivo:', error.message);
+    alert('⚠️ No se pudo adjuntar el archivo PDF/Excel: ' + error.message + '\n\nLos datos de la cotización se guardarán igual, pero sin el link al archivo.');
+    return null;
+  }
   const { data: urlData } = db.storage
     .from('archivos-cotizaciones')
     .getPublicUrl(data.path);
