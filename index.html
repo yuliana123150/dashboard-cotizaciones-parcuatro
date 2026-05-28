@@ -274,12 +274,10 @@
               <th>Fecha</th>
               <th>Proveedor</th>
               <th>Cliente / Proyecto</th>
-              <th>Cant. Ant.</th>
-              <th>Precio Unit. Ant.</th>
-              <th>Cant. Nueva</th>
-              <th>Precio Unit. Nuevo</th>
+              <th>Cantidad</th>
+              <th>Precio Total</th>
+              <th>Precio Unit.</th>
               <th>Var. Precio</th>
-              <th>Var. Cantidad</th>
               <th>Estado</th>
               <th>Acciones</th>
             </tr>
@@ -782,27 +780,25 @@ async function renderTabla() {
   let productoActual = null;
   tbody.innerHTML = data.map(c => {
     const vPrecio = varBadge(c.precio_unitario_anterior, c.precio_unitario);
-    const vCant   = varBadge(c.cantidad_anterior, c.cantidad);
     let header = '';
     if (c.producto !== productoActual) {
       productoActual = c.producto;
       header = `<tr>
-        <td colspan="11" style="background:#f0f4ff;padding:8px 12px;font-weight:700;font-size:12px;color:#3b4a8a;text-transform:uppercase;letter-spacing:.5px;border-top:2px solid #c7d2fe;">
-          📦 ${c.producto} ${c.tipo ? '· ' + c.tipo : ''} ${c.unidad ? '(' + c.unidad + ')' : ''}
+        <td colspan="9" style="background:#f0f4ff;padding:8px 12px;font-weight:700;font-size:12px;color:#3b4a8a;text-transform:uppercase;letter-spacing:.5px;border-top:2px solid #c7d2fe;">
+          📦 ${c.producto} ${c.tipo ? '· <span style="font-weight:500;color:#5a6abf">' + c.tipo + '</span>' : ''} ${c.unidad ? '<span style="color:#718096;font-weight:400">(' + c.unidad + ')</span>' : ''}
         </td>
       </tr>`;
     }
+    const precioTotal = c.precio_total ? fmt(Number(c.precio_total).toFixed(0)) : '<span style="color:#a0aec0">—</span>';
     return header + `
       <tr>
-        <td>${c.fecha}</td>
+        <td style="white-space:nowrap;">${c.fecha}</td>
         <td><strong>${c.proveedor}</strong></td>
         <td style="color:#718096;font-size:12px;">${c.proyecto || '—'}</td>
-        <td>${c.cantidad_anterior != null ? fmtN(c.cantidad_anterior) : '<span style="color:#a0aec0">—</span>'}</td>
-        <td>${c.precio_unitario_anterior != null ? fmt(Number(c.precio_unitario_anterior).toFixed(0)) : '<span style="color:#a0aec0">—</span>'}</td>
-        <td>${fmtN(c.cantidad)}</td>
-        <td>${fmt(Number(c.precio_unitario).toFixed(0))}</td>
+        <td style="text-align:right;">${fmtN(c.cantidad)}</td>
+        <td style="text-align:right;">${precioTotal}</td>
+        <td style="text-align:right;font-weight:600;color:#276749;">${fmt(Number(c.precio_unitario).toFixed(0))}</td>
         <td>${vPrecio}</td>
-        <td>${vCant}</td>
         <td>${estadoBadge(c.estado)}</td>
         <td>
           <button class="btn btn-sm btn-primary" onclick="verDetalle(${c.id})" title="Ver detalle">👁 Ver</button>
