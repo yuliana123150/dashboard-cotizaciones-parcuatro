@@ -375,6 +375,10 @@
             <input type="number" id="nm-ptotal" placeholder="Ej: 150000" oninput="nmRecalcDesdeTotal()"/>
           </div>
           <div class="nc-dato">
+            <span class="nc-lbl">Precio c/IVA (19%)</span>
+            <input id="nm-piva" placeholder="—" readonly style="background:#f7fafc;color:#718096;"/>
+          </div>
+          <div class="nc-dato">
             <span class="nc-lbl">Cliente / Proyecto</span>
             <input id="nm-proy" placeholder="Selecciona o escribe..." list="clientes-list"/>
           </div>
@@ -1850,15 +1854,24 @@ function ncOcultarFormManual() {
   ncSetPaso(1);
 }
 
+function nmActualizarIVA(total) {
+  const el = document.getElementById('nm-piva');
+  if (el && total > 0) el.value = fmt(Math.round(total * 1.19));
+}
 function nmRecalcDesdeUnit() {
   const pu   = parseFloat(document.getElementById('nm-punit')?.value);
   const cant = parseFloat(document.getElementById('nm-cant')?.value);
-  if (pu > 0 && cant > 0) document.getElementById('nm-ptotal').value = Math.round(pu * cant);
+  if (pu > 0 && cant > 0) {
+    const total = Math.round(pu * cant);
+    document.getElementById('nm-ptotal').value = total;
+    nmActualizarIVA(total);
+  }
 }
 function nmRecalcDesdeTotal() {
   const tot  = parseFloat(document.getElementById('nm-ptotal')?.value);
   const cant = parseFloat(document.getElementById('nm-cant')?.value);
   if (tot > 0 && cant > 0) document.getElementById('nm-punit').value = Math.round(tot / cant);
+  if (tot > 0) nmActualizarIVA(tot);
 }
 function nmRecalc() { nmRecalcDesdeUnit(); }
 
