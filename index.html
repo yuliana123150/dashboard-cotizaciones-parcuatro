@@ -250,7 +250,7 @@
     <div class="card">
       <h2>Comparativo de Cotizaciones</h2>
       <div style="display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
-        <input type="text" id="filtro-proveedor" placeholder="Filtrar por proveedor..." oninput="renderTabla()"
+        <input type="text" id="filtro-proveedor" placeholder="Filtrar por proveedor..." oninput="_filtroSubieron=false; renderTabla()"
           style="padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; min-width:200px;">
         <select id="filtro-estado" onchange="renderTabla()"
           style="padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px;">
@@ -263,7 +263,7 @@
           style="padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px;">
           <option value="">Todos los clientes</option>
         </select>
-        <input type="text" id="filtro-producto" placeholder="Buscar producto..." oninput="renderTabla()"
+        <input type="text" id="filtro-producto" placeholder="Buscar producto..." oninput="_filtroSubieron=false; renderTabla()"
           style="padding:8px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; min-width:200px;"
           list="productos-list">
       </div>
@@ -715,16 +715,26 @@ async function renderTabla() {
   actualizarFiltroProductos();
   actualizarProductosDatalist();
 
-  let data = [..._cotizaciones];
-  const fp  = document.getElementById('filtro-proveedor')?.value.toLowerCase() || '';
-  const fe  = document.getElementById('filtro-estado')?.value || '';
-  const fpr = document.getElementById('filtro-producto')?.value || '';
-  const fcl = document.getElementById('filtro-cliente')?.value || '';
+  // Actualizar dropdown de cliente con los valores reales de la BD
+  const clientesSel = document.getElementById('filtro-cliente');
+  const clienteActual = clientesSel?.value || '';
+  const proyectosEnBD = [...new Set(_cotizaciones.map(c => c.proyecto).filter(Boolean))].sort();
+  const todosClientes = [...new Set([...CLIENTES, ...proyectosEnBD])].sort();
+  if (clientesSel) {
+    clientesSel.innerHTML = '<option value="">Todos los clientes</option>' +
+      todosClientes.map(c => `<option value="${c}"${c === clienteActual ? ' selected' : ''}>${c}</option>`).join('');
+  }
 
-  if (fp)  data = data.filter(c => c.proveedor.toLowerCase().includes(fp));
+  let data = [..._cotizaciones];
+  const fp  = (document.getElementById('filtro-proveedor')?.value || '').toLowerCase().trim();
+  const fe  = document.getElementById('filtro-estado')?.value || '';
+  const fpr = (document.getElementById('filtro-producto')?.value || '').toLowerCase().trim();
+  const fcl = (document.getElementById('filtro-cliente')?.value || '').toLowerCase().trim();
+
+  if (fp)  data = data.filter(c => (c.proveedor || '').toLowerCase().includes(fp));
   if (fe)  data = data.filter(c => c.estado === fe);
-  if (fpr) data = data.filter(c => c.producto.toLowerCase().includes(fpr.toLowerCase()));
-  if (fcl) data = data.filter(c => c.proyecto === fcl);
+  if (fpr) data = data.filter(c => (c.producto || '').toLowerCase().includes(fpr));
+  if (fcl) data = data.filter(c => (c.proyecto || '').toLowerCase().includes(fcl));
   if (_filtroSubieron) data = data.filter(c => c.precio_unitario_anterior && c.precio_unitario > c.precio_unitario_anterior);
 
   data.sort((a, b) => {
@@ -986,7 +996,8 @@ function closeModal() { document.getElementById('modal-overlay').classList.remov
 function closeModalOverlay(e) { if (e.target === document.getElementById('modal-overlay')) closeModal(); }
 
 // ─── ESTIMADOR DE INSUMOS ─────────────────────────────────────────────────
-function renderEstimador() {
+async function renderEstimador() {
+  if (!_cotizaciones.length) await fetchCotizaciones();
   const anio   = document.getElementById('ei-anio')?.value || new Date().getFullYear().toString();
   const tipo   = document.getElementById('ei-tipo')?.value || '';
   const buscar = (document.getElementById('ei-buscar')?.value || '').toLowerCase();
