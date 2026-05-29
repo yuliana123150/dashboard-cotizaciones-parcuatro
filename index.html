@@ -318,6 +318,78 @@
           <div style="font-size:11px;color:#a0aec0;margin-top:14px;">Formatos aceptados: .pdf · .xlsx · .xls</div>
         </div>
         <input type="file" id="nc-file-input" accept=".pdf,.xlsx,.xls" style="display:none" onchange="ncHandleFileInput(event)" />
+
+        <!-- Separador manual -->
+        <div style="display:flex;align-items:center;gap:12px;margin:20px 0;">
+          <hr style="flex:1;border:none;border-top:1px solid #e2e8f0;">
+          <span style="font-size:12px;color:#a0aec0;white-space:nowrap;">¿Sin archivo? Ingresa manualmente</span>
+          <hr style="flex:1;border:none;border-top:1px solid #e2e8f0;">
+        </div>
+        <div style="text-align:center;">
+          <button class="btn" style="background:#f0f4ff;color:#3b4a8a;border:1px solid #c7d2fe;font-weight:600;"
+            onclick="ncMostrarFormManual()">✏️ Ingresar cotización manualmente</button>
+        </div>
+      </div>
+
+      <!-- Formulario manual -->
+      <div id="nc-form-manual" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+          <strong style="font-size:14px;color:#2d3748;">✏️ Ingreso manual de cotización</strong>
+          <span style="font-size:12px;color:#718096;cursor:pointer;text-decoration:underline;" onclick="ncOcultarFormManual()">✕ Cancelar</span>
+        </div>
+        <div class="nc-datos-grid">
+          <div class="nc-dato">
+            <span class="nc-lbl">Proveedor *</span>
+            <input id="nm-prov" placeholder="Nombre del proveedor"/>
+          </div>
+          <div class="nc-dato">
+            <span class="nc-lbl">Fecha *</span>
+            <input type="date" id="nm-fecha"/>
+          </div>
+          <div class="nc-dato full">
+            <span class="nc-lbl">Producto *</span>
+            <input id="nm-prod" placeholder="Nombre del producto o insumo" list="productos-list" oninput="nmActualizarComp()"/>
+          </div>
+          <div class="nc-dato">
+            <span class="nc-lbl">Tipo</span>
+            <select id="nm-tipo">
+              <option value="">Seleccionar...</option>
+              <option>Etiqueta</option><option>Embalaje</option><option>Envase</option>
+              <option>Insumo</option><option>Materia Prima</option><option>Otro</option>
+            </select>
+          </div>
+          <div class="nc-dato">
+            <span class="nc-lbl">Unidad</span>
+            <input id="nm-unidad" placeholder="unidades, kg, litros…"/>
+          </div>
+          <div class="nc-dato">
+            <span class="nc-lbl">Cantidad *</span>
+            <input type="number" id="nm-cant" placeholder="Ej: 1000" oninput="nmRecalc()"/>
+          </div>
+          <div class="nc-dato">
+            <span class="nc-lbl">Precio Unitario *</span>
+            <input type="number" id="nm-punit" placeholder="Ej: 150" style="color:#276749;font-weight:600;" oninput="nmRecalcDesdeUnit()"/>
+          </div>
+          <div class="nc-dato">
+            <span class="nc-lbl">Precio Total *</span>
+            <input type="number" id="nm-ptotal" placeholder="Ej: 150000" oninput="nmRecalcDesdeTotal()"/>
+          </div>
+          <div class="nc-dato">
+            <span class="nc-lbl">Cliente / Proyecto</span>
+            <input id="nm-proy" placeholder="Selecciona o escribe..." list="clientes-list"/>
+          </div>
+          <div class="nc-dato">
+            <span class="nc-lbl">Notas</span>
+            <input id="nm-notas" placeholder="Condiciones, plazo de entrega…"/>
+          </div>
+        </div>
+        <!-- Comparación con historial -->
+        <div id="nm-comp" style="margin-top:14px;"></div>
+        <div class="btn-row" style="margin-top:18px;">
+          <button class="btn btn-primary" onclick="nmGuardar()">💾 Guardar cotización</button>
+          <button class="btn" style="background:#e2e8f0;color:#718096;" onclick="ncOcultarFormManual()">Cancelar</button>
+        </div>
+        <div id="nm-msg" style="display:none;margin-top:10px;color:#276749;font-weight:600;font-size:13px;"></div>
       </div>
 
       <!-- PASO 2: Procesando -->
@@ -1753,6 +1825,92 @@ async function ncGuardarTodo() {
   msg.style.display = 'block';
   await renderTabla();
   setTimeout(ncReiniciar, 3000);
+}
+
+// ─── FORMULARIO MANUAL ────────────────────────────────────────────────────
+function ncMostrarFormManual() {
+  document.getElementById('nc-form-manual').style.display = 'block';
+  document.getElementById('nc-drop-area').style.display   = 'none';
+  document.querySelector('#nc-dropzone hr')?.closest('div[style*="flex"]') && null;
+  // Fecha de hoy por defecto
+  document.getElementById('nm-fecha').valueAsDate = new Date();
+  ncSetPaso(2);
+}
+
+function ncOcultarFormManual() {
+  document.getElementById('nc-form-manual').style.display = 'none';
+  document.getElementById('nc-drop-area').style.display   = 'block';
+  // Limpiar campos
+  ['nm-prov','nm-prod','nm-tipo','nm-unidad','nm-cant','nm-punit','nm-ptotal','nm-proy','nm-notas'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('nm-comp').innerHTML = '';
+  document.getElementById('nm-msg').style.display = 'none';
+  ncSetPaso(1);
+}
+
+function nmRecalcDesdeUnit() {
+  const pu   = parseFloat(document.getElementById('nm-punit')?.value);
+  const cant = parseFloat(document.getElementById('nm-cant')?.value);
+  if (pu > 0 && cant > 0) document.getElementById('nm-ptotal').value = Math.round(pu * cant);
+}
+function nmRecalcDesdeTotal() {
+  const tot  = parseFloat(document.getElementById('nm-ptotal')?.value);
+  const cant = parseFloat(document.getElementById('nm-cant')?.value);
+  if (tot > 0 && cant > 0) document.getElementById('nm-punit').value = Math.round(tot / cant);
+}
+function nmRecalc() { nmRecalcDesdeUnit(); }
+
+function nmActualizarComp() {
+  const prod = document.getElementById('nm-prod')?.value.trim();
+  const punit = parseFloat(document.getElementById('nm-punit')?.value);
+  const comp  = document.getElementById('nm-comp');
+  if (!comp) return;
+  const ref = ncHistRef(prod)[0];
+  if (!ref) { comp.innerHTML = ''; return; }
+  const { bg, html } = ncComparBadge(punit || ref.precio_unitario, ref);
+  comp.innerHTML = `<div class="nc-comparacion-badge" style="background:${bg};">${html}</div>`;
+}
+
+async function nmGuardar() {
+  const proveedor = document.getElementById('nm-prov')?.value.trim();
+  const producto  = document.getElementById('nm-prod')?.value.trim();
+  const fecha     = document.getElementById('nm-fecha')?.value;
+  const tipo      = document.getElementById('nm-tipo')?.value || null;
+  const unidad    = document.getElementById('nm-unidad')?.value.trim() || null;
+  const cantidad  = parseFloat(document.getElementById('nm-cant')?.value);
+  const punit     = parseFloat(document.getElementById('nm-punit')?.value);
+  const ptotal    = parseFloat(document.getElementById('nm-ptotal')?.value);
+  const proyecto  = document.getElementById('nm-proy')?.value.trim() || null;
+  const notas     = document.getElementById('nm-notas')?.value.trim() || null;
+
+  if (!proveedor || !producto || isNaN(cantidad) || (isNaN(punit) && isNaN(ptotal)) || !fecha) {
+    alert('Completa los campos obligatorios: proveedor, producto, cantidad, precio y fecha.');
+    return;
+  }
+  const precioUnitario = !isNaN(punit) && punit > 0 ? punit : ptotal / cantidad;
+  const precioTotal    = !isNaN(ptotal) && ptotal > 0 ? ptotal : Math.round(punit * cantidad);
+
+  const ref = ncHistRef(producto)[0];
+  const record = {
+    proveedor, producto, tipo, unidad, cantidad,
+    precio_unitario: precioUnitario,
+    precio_total: precioTotal,
+    fecha, proyecto, notas,
+    estado: 'pendiente',
+    cantidad_anterior: ref ? ref.cantidad : null,
+    precio_unitario_anterior: ref ? ref.precio_unitario : null
+  };
+
+  const { error } = await db.from('cotizaciones').insert([record]);
+  if (error) { alert('Error al guardar: ' + error.message); return; }
+
+  const msg = document.getElementById('nm-msg');
+  msg.textContent = `✅ Cotización de "${producto}" guardada correctamente.`;
+  msg.style.display = 'block';
+  await renderTabla();
+  setTimeout(() => { ncOcultarFormManual(); }, 2000);
 }
 
 function ncReiniciar() {
