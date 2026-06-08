@@ -1513,13 +1513,15 @@ function ncHistRef(producto) {
 
 function ncComparBadge(puNuevo, ref) {
   if (!ref) return { bg:'#f7fafc', html:'<span style="color:#a0aec0">Sin historial — será la primera cotización de este producto.</span>' };
-  const v = parseFloat(pct(ref.precio_unitario, puNuevo));
+  const v    = parseFloat(pct(ref.precio_unitario, puNuevo));
+  const diff = puNuevo && ref.precio_unitario ? Math.round(puNuevo - ref.precio_unitario) : 0;
+  const diffText = diff !== 0 ? ` (${diff > 0 ? '+' : ''}${fmt(diff)}/u)` : '';
   const refText = `Última ref.: ${ref.fecha} · <strong>${ref.proveedor}</strong>: ${fmt(Math.round(ref.precio_unitario))}/u`;
   if (isNaN(v) || Math.abs(v)<0.5)
     return { bg:'#f7fafc', html:`${refText} &nbsp; <span style="color:#718096;font-weight:700;">⚪ Precio igual</span>` };
   if (v>0)
-    return { bg:'#fff5f5', html:`${refText} &nbsp; <span style="color:#c53030;font-weight:700;">🔴 +${v.toFixed(1)}% más caro</span>` };
-  return   { bg:'#f0fff4', html:`${refText} &nbsp; <span style="color:#276749;font-weight:700;">🟢 ${v.toFixed(1)}% más barato</span>` };
+    return { bg:'#fff5f5', html:`${refText} &nbsp; <span style="color:#c53030;font-weight:700;">🔴 +${v.toFixed(1)}%${diffText} más caro</span>` };
+  return   { bg:'#f0fff4', html:`${refText} &nbsp; <span style="color:#276749;font-weight:700;">🟢 ${v.toFixed(1)}%${diffText} más barato</span>` };
 }
 
 function ncProductosSimilares(nombre) {
@@ -1652,12 +1654,19 @@ function ncRenderCard(p, idx) {
       </div>`;
     })()}
     ${histTabla}
-    <div id="nc-footer-${idx}" style="margin-top:18px;padding-top:14px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-      <button onclick="ncGuardarUno(${idx})" id="nc-btn-uno-${idx}"
-        style="padding:9px 20px;background:#276749;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
-        💾 Guardar este
+    <div id="nc-footer-${idx}" style="margin-top:18px;padding-top:14px;border-top:1px solid #e2e8f0;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <button onclick="ncGuardarUno(${idx},'pendiente')" id="nc-btn-uno-${idx}"
+        style="padding:9px 18px;background:#4a5568;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+        💾 Guardar
       </button>
-      <span style="font-size:12px;color:#a0aec0;">o usa "Guardar todos" al final de la página</span>
+      <button onclick="ncGuardarUno(${idx},'aprobada')" id="nc-btn-apro-${idx}"
+        style="padding:9px 18px;background:#276749;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+        ✅ Guardar y aprobar
+      </button>
+      <button onclick="ncGuardarUno(${idx},'rechazada')" id="nc-btn-rech-${idx}"
+        style="padding:9px 18px;background:#c53030;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+        ❌ Rechazar
+      </button>
     </div>
   </div>`;
 }
@@ -1788,25 +1797,34 @@ async function ncUploadArchivo() {
   return _ncArchivoUrl;
 }
 
-async function ncGuardarUno(idx) {
+async function ncGuardarUno(idx, estado = 'pendiente') {
   const btn = document.getElementById(`nc-btn-uno-${idx}`);
+  const btnApro = document.getElementById(`nc-btn-apro-${idx}`);
+  const btnRech = document.getElementById(`nc-btn-rech-${idx}`);
   const r = ncLeerCard(idx);
   if (!r) { alert('Completa los campos obligatorios: proveedor, producto, cantidad, precio y fecha.'); return; }
-  btn.disabled = true; btn.textContent = '⏳ Guardando…';
+  r.estado = estado;
+  // Deshabilitar los 3 botones mientras guarda
+  [btn, btnApro, btnRech].forEach(b => { if (b) { b.disabled = true; } });
+  if (btn) btn.textContent = '⏳ Guardando…';
   const archivoUrl = await ncUploadArchivo();
   if (archivoUrl) r.archivo_url = archivoUrl;
   const { error } = await db.from('cotizaciones').insert([r]);
   if (error) {
-    btn.disabled = false; btn.textContent = '💾 Guardar este';
+    [btn, btnApro, btnRech].forEach(b => { if (b) b.disabled = false; });
+    if (btn) btn.textContent = '💾 Guardar';
     alert('Error al guardar: ' + error.message);
     return;
   }
-  // Marcar card como guardada
   const card   = document.getElementById(`nc-card-${idx}`);
   const footer = document.getElementById(`nc-footer-${idx}`);
   card.dataset.saved = 'true';
   card.style.opacity = '0.65';
-  footer.innerHTML = '<span style="color:#276749;font-weight:700;font-size:13px;background:#f0fff4;padding:8px 16px;border-radius:8px;border:1px solid #9ae6b4;">✅ Guardada correctamente</span>';
+  const estadoLabel = estado === 'aprobada' ? '✅ Guardada y aprobada' : estado === 'rechazada' ? '❌ Guardada y rechazada' : '💾 Guardada correctamente';
+  const estadoColor = estado === 'aprobada' ? '#276749' : estado === 'rechazada' ? '#c53030' : '#276749';
+  const estadoBg    = estado === 'aprobada' ? '#f0fff4' : estado === 'rechazada' ? '#fff5f5' : '#f0fff4';
+  const estadoBorder = estado === 'aprobada' ? '#9ae6b4' : estado === 'rechazada' ? '#fc8181' : '#9ae6b4';
+  footer.innerHTML = `<span style="color:${estadoColor};font-weight:700;font-size:13px;background:${estadoBg};padding:8px 16px;border-radius:8px;border:1px solid ${estadoBorder};">${estadoLabel}</span>`;
   await renderTabla();
 }
 
