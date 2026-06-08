@@ -1184,6 +1184,7 @@ function ncDrop(e)      { e.preventDefault(); ncDragLeave(); const f = e.dataTra
 function ncHandleFileInput(e) { const f = e.target.files[0]; if (f) ncHandleFile(f); }
 
 async function ncHandleFile(file) {
+  document.getElementById('nc-debug-msg')?.remove();  // limpiar error anterior
   _ncArchivo    = file;   // guarda referencia para subirlo al guardar
   _ncArchivoUrl = null;
   const ext = file.name.split('.').pop().toLowerCase();
@@ -1208,6 +1209,7 @@ async function ncHandleFile(file) {
       document.getElementById('nc-dropzone').style.display = 'block';
       ncSetPaso(1);
       const debugDiv = document.createElement('div');
+      debugDiv.id = 'nc-debug-msg';
       debugDiv.style.cssText = 'margin-top:16px;padding:14px;background:#fff5f5;border:1px solid #fc8181;border-radius:10px;font-size:12px;';
       debugDiv.innerHTML = `<strong>⚠ No se encontraron datos. Copia este texto y compártelo para diagnosticar:</strong>
         <textarea style="width:100%;margin-top:8px;height:220px;font-size:11px;font-family:monospace;border:1px solid #e2e8f0;border-radius:6px;padding:8px;" readonly>${typeof textoDebug !== 'undefined' ? ncEsc(textoDebug) : '(archivo Excel — sin texto PDF)'}</textarea>`;
@@ -1927,6 +1929,7 @@ async function nmGuardar() {
 }
 
 function ncReiniciar() {
+  document.getElementById('nc-debug-msg')?.remove();  // limpiar error si quedó
   _ncDatos      = [];
   _ncArchivo    = null;
   _ncArchivoUrl = null;
