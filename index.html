@@ -1308,6 +1308,8 @@ function ncExtraerProveedor(texto) {
   for (const [re, nombre] of conocidos) {
     if (re.test(texto)) return nombre;
   }
+  // Plantilla RYR Impresores: ítem "N/A  Descripción  cantidad  precio." (sin nombre de empresa en el texto)
+  if (/^N\/A\s+[A-Za-záéíóúÁÉÍÓÚñÑ].{2,80}?\s+[\d,\.]+\s+[\d,\.]+\.\s*$/m.test(texto)) return 'RYR Impresores';
   const m = texto.match(/De\s{2,}([A-ZÁÉÍÓÚÑ][^\n\r]{3,40})/i);
   if (m) return m[1].trim();
   return '';
@@ -1368,6 +1370,9 @@ function ncExtraerDePDF(texto, nombreArchivo) {
   // Patrón D: "cantidad  $ precio_unit  total  Descripción" (GL Group: números antes que descripción)
   const patD = new RegExp(`^(${NUM})\\s+\\$\\s*([\\d,\\.]+)\\s+([\\d,\\.]+)\\s+([A-Za-záéíóúÁÉÍÓÚñÑ].{2,80})`);
 
+  // Patrón E: "N/A  Descripción  cantidad  precio_unit." (plantilla RYR Impresores — sin total explícito)
+  const patE = /^N\/A\s+([A-Za-záéíóúÁÉÍÓÚñÑ][^\n]{2,80}?)\s+([\d,\.]+)\s+([\d,\.]+)\.\s*$/;
+
   for (let i = 0; i < lineas.length; i++) {
     const linea = lineas[i];
     if (SKIP.test(linea) || HEADER_ROW.test(linea)) continue;
@@ -1375,6 +1380,13 @@ function ncExtraerDePDF(texto, nombreArchivo) {
 
     let desc, cant, pu, tot;
 
+    const mE = linea.match(patE);
+    if (mE) {
+      desc = mE[1].trim();
+      cant = parseNum(mE[2]);
+      pu   = parseNum(mE[3]);
+      tot  = cant * pu;
+    } else {
     const mD = linea.match(patD);
     if (mD) {
       cant = parseNum(mD[1]);
@@ -1417,6 +1429,7 @@ function ncExtraerDePDF(texto, nombreArchivo) {
           }
         }
       }
+    }
     }
 
     if (!cant || !pu || cant < 5 || cant > 500000 || pu < 1 || pu > 10000000) continue;
