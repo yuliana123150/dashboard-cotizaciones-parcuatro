@@ -1304,6 +1304,7 @@ function ncExtraerProveedor(texto) {
     [/novopack/i,                'Novopack'],
     [/zebra/i,                   'Zebra'],
     [/comercial\s+gl/i,          'GL Group S.A.'],
+    [/fullservice/i,             'FullService Spa'],
   ];
   for (const [re, nombre] of conocidos) {
     if (re.test(texto)) return nombre;
@@ -1318,6 +1319,12 @@ function ncExtraerProveedor(texto) {
 function ncExtraerFecha(texto, nombre) {
   const m = texto.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
   if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+  // Fecha en texto: "24 de Junio de 2026"
+  const MESES = { enero:1, febrero:2, marzo:3, abril:4, mayo:5, junio:6, julio:7, agosto:8, septiembre:9, setiembre:9, octubre:10, noviembre:11, diciembre:12 };
+  const ms = texto.match(/(\d{1,2})\s+de\s+([a-záéíóú]+)\s+de\s+(\d{4})/i);
+  if (ms && MESES[ms[2].toLowerCase()]) {
+    return `${ms[3]}-${String(MESES[ms[2].toLowerCase()]).padStart(2,'0')}-${ms[1].padStart(2,'0')}`;
+  }
   const fm = nombre.match(/(\d{2})(\d{2})(\d{4})|(\d{2})-(\d{2})-(\d{2,4})/);
   if (fm) {
     if (fm[3]) return `${fm[3]}-${fm[2]}-${fm[1]}`;
@@ -1341,6 +1348,29 @@ function ncExtraerDePDF(texto, nombreArchivo) {
   const fecha      = ncExtraerFecha(texto, nombreArchivo);
   const rows       = [];
   const parseNum   = s => parseInt(String(s).replace(/[,\.]/g,''), 10);
+
+  // Plantilla "PRESUPUESTO Nº ... / Cantidad: X / Precio: $total Unitario: $unit" (FullService Spa y similares)
+  const mPresup = texto.match(/Precio:\s*\$?\s*([\d,\.]+)\s+Unitario:\s*\$?\s*([\d,\.]+)/i);
+  if (mPresup) {
+    const mCant = texto.match(/Cantidad:\s*([\d,\.]+)/i);
+    const tot   = parseNum(mPresup[1]);
+    const pu    = parseNum(mPresup[2]);
+    const cant  = mCant ? parseNum(mCant[1]) : (pu ? Math.round(tot / pu) : null);
+    if (cant && pu) {
+      const lineasOrig = texto.split('\n').map(l => l.trim()).filter(Boolean);
+      const idxCant = lineasOrig.findIndex(l => /^Cantidad:/i.test(l));
+      let desc = idxCant > 0 ? lineasOrig[idxCant - 1] : null;
+      if (!desc || /^(presente|se[ñn]ores|atentamente)/i.test(desc)) desc = null;
+      if (!desc) desc = nombreArchivo.replace(/\.[^.]+$/, '').trim();
+      rows.push({
+        proveedor, producto: desc.substring(0, 100), tipo: ncInferirTipo(desc),
+        fecha, proyecto: null, cantidad: cant,
+        precio_total: tot, precio_unitario: pu,
+        estado: 'pendiente', cantidad_anterior: null, precio_unitario_anterior: null,
+      });
+      return rows;
+    }
+  }
 
   // Líneas de encabezado o totales — no son productos
   const SKIP = /^\s*(item|descripci[oó]n|cantidad|precio|total|neto|iva|subtotal|observ|fono|fax|tel[eé]f|vencimiento|emisi[oó]n|ejecutivo|validez|presenta)\s*[:\$]?\s*$/i;
