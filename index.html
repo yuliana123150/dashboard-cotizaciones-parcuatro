@@ -1349,6 +1349,32 @@ function ncExtraerDePDF(texto, nombreArchivo) {
   const rows       = [];
   const parseNum   = s => parseInt(String(s).replace(/[,\.]/g,''), 10);
 
+  // Plantilla Impresos Román: tabla "Cant. | P. unit neto | Subtotal neto | Total c/IVA"
+  // La fila de datos tiene: [cant]  $[pu]  $[subtotal]  $[totalIVA] al final de una línea con descripción
+  if (/P\.\s*unit|Subtotal\s+neto|Total\s+neto/i.test(texto)) {
+    const mFila = texto.match(/\b(\d{1,5})\s+\$\s*([\d,\.]+)\s+\$\s*([\d,\.]+)\s+\$\s*[\d,\.]+/);
+    if (mFila) {
+      const cant = parseNum(mFila[1]);
+      const pu   = parseNum(mFila[2]);
+      const tot  = parseNum(mFila[3]);
+      // Descripción desde campo "Producto" en sección especificaciones (más limpio)
+      const mProd = texto.match(/Producto\s+([A-Za-záéíóúÁÉÍÓÚñÑ][^\n]{5,120})/i);
+      // O desde primera línea de descripción del ítem
+      const mDesc = texto.match(/\b0+1\s+([A-Za-záéíóúÁÉÍÓÚñÑ][^\n]{5,80})/);
+      let desc = (mProd ? mProd[1] : mDesc ? mDesc[1] : null);
+      if (!desc) desc = nombreArchivo.replace(/\.[^.]+$/, '').trim();
+      if (cant > 0 && pu > 0) {
+        rows.push({
+          proveedor, producto: desc.trim().substring(0, 100), tipo: ncInferirTipo(desc),
+          fecha, proyecto: null, cantidad: cant,
+          precio_total: tot, precio_unitario: pu,
+          estado: 'pendiente', cantidad_anterior: null, precio_unitario_anterior: null,
+        });
+        return rows;
+      }
+    }
+  }
+
   // Plantilla "PRESUPUESTO Nº ... / Cantidad: X / Precio: $total Unitario: $unit" (FullService Spa y similares)
   const mPresup = texto.match(/Precio:\s*\$?\s*([\d,\.]+)\s+Unitario:\s*\$?\s*([\d,\.]+)/i);
   if (mPresup) {
