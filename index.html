@@ -1309,8 +1309,8 @@ function ncExtraerProveedor(texto) {
   for (const [re, nombre] of conocidos) {
     if (re.test(texto)) return nombre;
   }
-  // Plantilla RYR Impresores: ítem "N/A  Descripción  cantidad  precio." (sin nombre de empresa en el texto)
-  if (/^N\/A\s+[A-Za-záéíóúÁÉÍÓÚñÑ].{2,80}?\s+[\d,\.]+\s+[\d,\.]+\.\s*$/m.test(texto)) return 'RYR Impresores';
+  // Plantilla RYR Impresores: ítem "Descripción  cantidad  precio." con precio terminado en punto (sin $ ni total)
+  if (/^(?:N\/A\s+)?[A-Za-záéíóúÁÉÍÓÚñÑ][^\n]{2,80}?\s+[\d,\.]+\s+\d+\.\s*$/m.test(texto)) return 'RYR Impresores';
   const m = texto.match(/De\s{2,}([A-ZÁÉÍÓÚÑ][^\n\r]{3,40})/i);
   if (m) return m[1].trim();
   return '';
@@ -1426,8 +1426,8 @@ function ncExtraerDePDF(texto, nombreArchivo) {
   // Patrón D: "cantidad  $ precio_unit  total  Descripción" (GL Group: números antes que descripción)
   const patD = new RegExp(`^(${NUM})\\s+\\$\\s*([\\d,\\.]+)\\s+([\\d,\\.]+)\\s+([A-Za-záéíóúÁÉÍÓÚñÑ].{2,80})`);
 
-  // Patrón E: "N/A  Descripción  cantidad  precio_unit." (plantilla RYR Impresores — sin total explícito)
-  const patE = /^N\/A\s+([A-Za-záéíóúÁÉÍÓÚñÑ][^\n]{2,80}?)\s+([\d,\.]+)\s+([\d,\.]+)\.\s*$/;
+  // Patrón E: "[N/A]  Descripción  cantidad  precio_unit." (plantilla RYR Impresores — precio termina en punto)
+  const patE = /^(?:N\/A\s+)?([A-Za-záéíóúÁÉÍÓÚñÑ][^\n]{2,80}?)\s+([\d,\.]+)\s+([\d,\.]+)\.\s*$/;
 
   for (let i = 0; i < lineas.length; i++) {
     const linea = lineas[i];
