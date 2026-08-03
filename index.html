@@ -848,8 +848,9 @@ async function renderTabla() {
       </tr>`;
     }
     const precioTotal = c.precio_total ? fmt(Number(c.precio_total).toFixed(0)) : '<span style="color:#a0aec0">—</span>';
+    const rowBg = c.estado === 'aprobada' ? 'background:#f0fff4;' : c.estado === 'rechazada' ? 'background:#fff5f5;' : '';
     return header + `
-      <tr>
+      <tr style="${rowBg}">
         <td style="white-space:nowrap;">${c.fecha}</td>
         <td><strong>${c.proveedor}</strong></td>
         <td style="color:#718096;font-size:12px;">${c.proyecto || '—'}</td>
