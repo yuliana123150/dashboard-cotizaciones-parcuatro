@@ -817,8 +817,10 @@ async function renderTabla() {
   if (fcl) data = data.filter(c => (c.proyecto || '').toLowerCase().includes(fcl));
   if (_filtroSubieron) data = data.filter(c => c.precio_unitario_anterior && c.precio_unitario > c.precio_unitario_anterior);
 
+  const normProd = s => (s || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
   data.sort((a, b) => {
-    const prod = a.producto.localeCompare(b.producto, 'es');
+    const prod = normProd(a.producto).localeCompare(normProd(b.producto), 'es');
     if (prod !== 0) return prod;
     return new Date(b.fecha) - new Date(a.fecha);
   });
@@ -837,7 +839,7 @@ async function renderTabla() {
   tbody.innerHTML = data.map(c => {
     const vPrecio = varBadge(c.precio_unitario_anterior, c.precio_unitario);
     let header = '';
-    if (c.producto !== productoActual) {
+    if (normProd(c.producto) !== normProd(productoActual)) {
       productoActual = c.producto;
       header = `<tr>
         <td colspan="10" style="background:#f0f4ff;padding:8px 12px;font-weight:700;font-size:12px;color:#3b4a8a;text-transform:uppercase;letter-spacing:.5px;border-top:2px solid #c7d2fe;">
