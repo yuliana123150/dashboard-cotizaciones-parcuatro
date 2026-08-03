@@ -812,7 +812,7 @@ async function renderTabla() {
     (c.proyecto  || '').toLowerCase().includes(fp) ||
     (c.producto  || '').toLowerCase().includes(fp)
   );
-  if (fe)  data = data.filter(c => c.estado === fe);
+  if (fe && !fpr) data = data.filter(c => c.estado === fe);  // si hay filtro de producto, mostrar todos los estados
   if (fpr) data = data.filter(c => (c.producto || '').toLowerCase().includes(fpr));
   if (fcl) data = data.filter(c => (c.proyecto || '').toLowerCase().includes(fcl));
   if (_filtroSubieron) data = data.filter(c => c.precio_unitario_anterior && c.precio_unitario > c.precio_unitario_anterior);
