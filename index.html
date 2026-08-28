@@ -968,6 +968,16 @@ function abrirEdicion(id) {
           <option value="rechazada"${c.estado==='rechazada'?' selected':''}>❌ Rechazada</option>
         </select>
       </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label style="font-size:12px;color:#718096;">Archivo adjunto</label>
+        <div style="margin-bottom:6px;">
+          ${c.archivo_url
+            ? `<a href="${c.archivo_url}" target="_blank" style="color:#3b82f6;font-size:12px;text-decoration:none;">📎 Ver archivo actual</a>`
+            : `<span style="color:#a0aec0;font-size:12px;">Sin archivo adjunto</span>`}
+        </div>
+        <input type="file" id="ed-archivo" accept=".pdf,.xlsx,.xls" style="width:100%;font-size:12px;color:#4a5568;"/>
+        <div style="font-size:11px;color:#a0aec0;margin-top:3px;">Selecciona un archivo para reemplazar el adjunto actual (opcional)</div>
+      </div>
     </div>
     <div class="btn-row">
       <button class="btn btn-primary" onclick="guardarEdicion(${id})">💾 Guardar cambios</button>
@@ -975,6 +985,18 @@ function abrirEdicion(id) {
     </div>
     <div id="ed-msg" style="display:none;margin-top:10px;color:#276749;font-weight:600;font-size:13px;"></div>
   `;
+}
+
+async function edUploadArchivo(file) {
+  const ts   = Date.now();
+  const path = `${ts}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+  const ext  = file.name.split('.').pop().toLowerCase();
+  const mimeMap = { pdf:'application/pdf', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xls:'application/vnd.ms-excel' };
+  const contentType = mimeMap[ext] || file.type || 'application/octet-stream';
+  const { data, error } = await db.storage.from('archivos-cotizaciones').upload(path, file, { upsert: false, contentType });
+  if (error) { console.warn('Upload error:', error.message); return null; }
+  const { data: urlData } = db.storage.from('archivos-cotizaciones').getPublicUrl(data.path);
+  return urlData.publicUrl;
 }
 
 function edRecalc() {
@@ -1011,8 +1033,20 @@ async function guardarEdicion(id) {
     return;
   }
 
+  const archivoInput = document.getElementById('ed-archivo');
+  const nuevoArchivo = archivoInput?.files?.[0];
+  let archivo_url_update = {};
+  if (nuevoArchivo) {
+    const btn = document.querySelector('#modal-body .btn-primary');
+    if (btn) btn.textContent = '⏳ Subiendo archivo…';
+    const url = await edUploadArchivo(nuevoArchivo);
+    if (url) archivo_url_update = { archivo_url: url };
+    else alert('⚠️ No se pudo subir el archivo. Los demás datos se guardarán igual.');
+    if (btn) btn.textContent = '💾 Guardar cambios';
+  }
+
   const { error } = await db.from('cotizaciones')
-    .update({ proveedor, producto, fecha, tipo, unidad, cantidad, precio_unitario, precio_total, proyecto, notas, estado })
+    .update({ proveedor, producto, fecha, tipo, unidad, cantidad, precio_unitario, precio_total, proyecto, notas, estado, ...archivo_url_update })
     .eq('id', id);
 
   if (error) { alert('Error al guardar: ' + error.message); return; }
